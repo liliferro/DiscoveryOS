@@ -27,6 +27,7 @@ import DiscoveryEditor from "./discovery-editor";
 import AiConnectionPanel from "./ai-connection";
 import LeadSummary from "./lead-summary";
 import AgencyPanel from "./agency-panel";
+import LeadContactCard from "./lead-contact-card";
 type Data = { tenant: Tenant; runs: Run[]; agencyAdmin?: boolean };
 const tabs = [
   { name: "Vista general", icon: LayoutDashboard },
@@ -247,7 +248,11 @@ export default function Dashboard({
               </div>
               <h1>
                 {selected
-                  ? "Informe de discovery"
+                  ? selected.contact &&
+                    !selected.conversation?.closed &&
+                    !selected.report
+                    ? "Datos del prospecto"
+                    : "Informe de discovery"
                   : tab === "Agencia"
                     ? "Tu agencia. Todas tus marcas."
                     : tab === "Vista general"
@@ -285,11 +290,11 @@ export default function Dashboard({
           )}
           {tab === "Agencia" && data?.agencyAdmin && (
             <AgencyPanel
-              onOpenLanding={async (id) => {
+              onOpenLanding={async (id, view = "Constructor") => {
                 await api("agency/switch", "POST", { landingId: id });
                 await refresh();
                 setSelected(undefined);
-                setTab("Constructor");
+                setTab(view);
               }}
             />
           )}
@@ -298,7 +303,24 @@ export default function Dashboard({
               Este panel está reservado a la administración de la agencia.
             </div>
           )}
-          {selected?.conversation?.closed ? (
+          {selected?.contact &&
+          !selected.conversation?.closed &&
+          !selected.report ? (
+            <>
+              <button
+                className="text-link"
+                onClick={() => setSelected(undefined)}
+              >
+                ← Volver a sesiones
+              </button>
+              <h2>Prospecto en curso</h2>
+              <LeadContactCard contact={selected.contact} />
+              <p className="muted">
+                Sus datos de contacto están registrados. El resultado aparecerá
+                cuando termine la conversación.
+              </p>
+            </>
+          ) : selected?.conversation?.closed ? (
             <>
               <button
                 className="text-link"
@@ -469,6 +491,9 @@ export default function Dashboard({
                           .filter((r) =>
                             [
                               r.answers.company || "",
+                              r.contact?.name || "",
+                              r.contact?.whatsapp || "",
+                              r.contact?.email || "",
                               r.id,
                               ...(r.conversation?.decision?.segments.map(
                                 (s) => s.service,
@@ -488,14 +513,19 @@ export default function Dashboard({
                               <td>
                                 <div className="company-cell">
                                   <span className="company-icon">
-                                    {String(r.answers.company || "S")
+                                    {String(
+                                      r.contact?.name ||
+                                        r.answers.company ||
+                                        "S",
+                                    )
                                       .slice(0, 1)
                                       .toUpperCase()}
                                   </span>
                                   <div>
                                     <strong>
                                       {String(
-                                        r.answers.company ||
+                                        r.contact?.name ||
+                                          r.answers.company ||
                                           (r.conversation
                                             ? `Visitante ${r.id.slice(0, 6)}`
                                             : "Sin nombre todavía"),
@@ -503,7 +533,8 @@ export default function Dashboard({
                                     </strong>
                                     <small>
                                       {String(
-                                        r.answers.sector ||
+                                        r.contact?.whatsapp ||
+                                          r.answers.sector ||
                                           r.conversation?.decision?.segments
                                             .map((s) => s.service)
                                             .join(" · ") ||
@@ -523,7 +554,9 @@ export default function Dashboard({
                                 <span className={`status ${r.state}`}>
                                   {
                                     {
-                                      draft: "Borrador",
+                                      draft: r.contact
+                                        ? "En curso"
+                                        : "Borrador",
                                       processing: "Procesando",
                                       completed_limited: r.conversation
                                         ? "Discovery IA"
@@ -545,6 +578,14 @@ export default function Dashboard({
                                   <button
                                     className="icon-button"
                                     aria-label="Ver informe"
+                                    onClick={() => setSelected(r)}
+                                  >
+                                    <ArrowUpRight size={18} />
+                                  </button>
+                                ) : r.contact ? (
+                                  <button
+                                    className="icon-button"
+                                    aria-label="Ver prospecto"
                                     onClick={() => setSelected(r)}
                                   >
                                     <ArrowUpRight size={18} />

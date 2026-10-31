@@ -11,6 +11,7 @@ import {
   Check,
   Copy,
   Download,
+  Users,
 } from "lucide-react";
 import { api } from "@/lib/client";
 import type { AgencyClient, agencyDashboard } from "@/lib/agency";
@@ -49,7 +50,10 @@ const slugify = (text: string) =>
 export default function AgencyPanel({
   onOpenLanding,
 }: {
-  onOpenLanding: (id: string) => Promise<void>;
+  onOpenLanding: (
+    id: string,
+    view?: "Constructor" | "Sesiones",
+  ) => Promise<void>;
 }) {
   const [data, setData] = useState<Data>();
   const [selectedId, setSelectedId] = useState<string>();
@@ -768,6 +772,17 @@ export default function AgencyPanel({
                 >
                   <Download size={14} />
                   Exportar CSV
+                </button>
+                <button
+                  className="text-link"
+                  style={{ marginTop: 16, marginLeft: 18 }}
+                  disabled={busy}
+                  onClick={() =>
+                    void perform(() => onOpenLanding(landing.id, "Sesiones"))
+                  }
+                >
+                  <Users size={14} />
+                  Ver prospectos
                 </button>
                 {landing.published && (
                   <div className="agency-actions">

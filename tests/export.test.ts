@@ -33,6 +33,13 @@ test("La exportación limita las filas a la landing solicitada y omite credencia
     expiresAt: Date.now() + 60000,
     privacy: true,
     marketing: false,
+    contact: {
+      name: "Persona de prueba",
+      whatsapp: "+525500000000",
+      email: "persona@example.test",
+      consentedAt: "2026-10-30T12:00:00Z",
+      noticeVersion: "lead-contact-v1",
+    },
     config: tenants[0].draft,
     createdAt: "2026-10-30T12:00:00Z",
     state: "draft",
@@ -49,6 +56,8 @@ test("La exportación limita las filas a la landing solicitada y omite credencia
   assert.ok(file.csv.includes("run-uno"));
   assert.ok(!file.csv.includes("run-dos"));
   assert.ok(!file.csv.includes(run.tokenHash));
+  assert.ok(file.csv.includes("persona@example.test"));
+  assert.ok(file.csv.includes("Consentimiento de contacto"));
   assert.throws(
     () => exportLeads(state, { clientId: "inexistente" }),
     /Cliente no disponible/,

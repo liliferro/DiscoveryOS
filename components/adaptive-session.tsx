@@ -37,6 +37,16 @@ export default function AdaptiveSession({
     initialRun?.conversation?.turns.at(-1)?.answer || "",
   );
   const [consent, setConsent] = useState(false);
+  const [contactName, setContactName] = useState(
+    initialRun?.contact?.name || "",
+  );
+  const [contactWhatsapp, setContactWhatsapp] = useState(
+    initialRun?.contact?.whatsapp || "",
+  );
+  const [contactEmail, setContactEmail] = useState(
+    initialRun?.contact?.email || "",
+  );
+  const [contactConsent, setContactConsent] = useState(!!initialRun?.contact);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const c = run?.conversation;
@@ -85,6 +95,15 @@ export default function AdaptiveSession({
         });
         router.push("/r/" + next.id);
         return;
+      }
+      if (run.contactRequired && !c?.turns.length) {
+        const saved = await api<Run>(`public/runs/${run.id}/contact`, "PUT", {
+          name: contactName,
+          whatsapp: contactWhatsapp,
+          email: contactEmail,
+          consent: contactConsent,
+        });
+        setRun(saved);
       }
       await advance();
     } catch (e) {
@@ -203,29 +222,95 @@ export default function AdaptiveSession({
               <span>Según lo que nos cuentes</span>
             </div>
             {run && (
-              <div className="consents">
-                <p>
-                  <strong>Antes de empezar · prueba de discovery</strong>
-                  <br />
-                  Tus respuestas se enviarán al proveedor de IA configurado para
-                  personalizar las preguntas y se guardarán en la plataforma. No
-                  incluyas nombres, datos de contacto, documentos ni información
-                  clínica sensible. Utiliza un caso ficticio mientras validamos
-                  el piloto.
-                </p>
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={consent}
-                    onChange={(e) => setConsent(e.target.checked)}
-                  />
-                  Entiendo el uso de mis respuestas con IA en esta prueba.
-                </label>
-              </div>
+              <>
+                {run.contactRequired && (
+                  <fieldset className="lead-contact-form">
+                    <legend>
+                      Antes de empezar, ¿cómo podemos contactarte?
+                    </legend>
+                    <p>
+                      Guardaremos tus datos para que el equipo de {name} pueda
+                      atender tu solicitud. La IA recibirá las respuestas que
+                      escribas durante la conversación.
+                    </p>
+                    <label>
+                      Tu nombre
+                      <input
+                        autoComplete="name"
+                        required
+                        maxLength={100}
+                        value={contactName}
+                        onChange={(e) => setContactName(e.target.value)}
+                      />
+                    </label>
+                    <label>
+                      Tu WhatsApp con código de país
+                      <input
+                        type="tel"
+                        autoComplete="tel"
+                        inputMode="tel"
+                        required
+                        maxLength={40}
+                        placeholder="+52 55 1234 5678"
+                        value={contactWhatsapp}
+                        onChange={(e) => setContactWhatsapp(e.target.value)}
+                      />
+                    </label>
+                    <label>
+                      Tu correo electrónico
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        required
+                        maxLength={254}
+                        value={contactEmail}
+                        onChange={(e) => setContactEmail(e.target.value)}
+                      />
+                    </label>
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={contactConsent}
+                        onChange={(e) => setContactConsent(e.target.checked)}
+                      />
+                      Autorizo que {name} use estos datos para contactarme y
+                      atender esta solicitud.
+                    </label>
+                  </fieldset>
+                )}
+                <div className="consents">
+                  <p>
+                    <strong>Antes de empezar · prueba de discovery</strong>
+                    <br />
+                    Tus respuestas se enviarán al proveedor de IA configurado
+                    para personalizar las preguntas y se guardarán en la
+                    plataforma. No incluyas nombres, datos de contacto,
+                    documentos ni información clínica sensible en las respuestas
+                    a la conversación. Utiliza un caso ficticio mientras
+                    validamos el piloto.
+                  </p>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={consent}
+                      onChange={(e) => setConsent(e.target.checked)}
+                    />
+                    Entiendo el uso de mis respuestas con IA en esta prueba.
+                  </label>
+                </div>
+              </>
             )}
             <button
               className="button primary"
-              disabled={busy || (!!run && !consent)}
+              disabled={
+                busy ||
+                (!!run && !consent) ||
+                (!!run?.contactRequired &&
+                  (!contactName.trim() ||
+                    !contactWhatsapp.trim() ||
+                    !contactEmail.trim() ||
+                    !contactConsent))
+              }
               onClick={start}
             >
               {busy ? (

@@ -1,6 +1,7 @@
 "use client";
 import type { Run } from "@/lib/domain";
 import { ArrowRight, Check, CalendarDays } from "lucide-react";
+import LeadContactCard from "./lead-contact-card";
 export default function LeadSummary({
   run,
   internal = false,
@@ -121,6 +122,7 @@ export default function LeadSummary({
           : `Conversación con IA · ${c.provider === "anthropic" ? "Claude" : "OpenAI"}`}
       </span>
       <h1>Esto es lo que nos contaste.</h1>
+      {run.contact && <LeadContactCard contact={run.contact} />}
       <span className="tag">
         Resultado guardado · pendiente de revisión del equipo
       </span>

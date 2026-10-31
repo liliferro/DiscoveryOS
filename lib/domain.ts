@@ -95,6 +95,14 @@ export type Run = {
   marketing: boolean;
   submittedAt?: string;
   conversation?: Conversation;
+  contactRequired?: boolean;
+  contact?: {
+    name: string;
+    whatsapp: string;
+    email: string;
+    consentedAt: string;
+    noticeVersion: string;
+  };
   patientResult?: {
     createdAt: string;
     status: "ready_for_review";

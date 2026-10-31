@@ -30,6 +30,7 @@ import {
 import { processLegacyRun } from "@/lib/job-runner";
 import { handleAgency, AgencyError } from "@/lib/agency";
 import { exportLeads } from "@/lib/lead-export";
+import { leadContactSchema } from "@/lib/lead-contact";
 export const maxDuration = 60;
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -379,6 +380,7 @@ async function handler(
           createdAt: new Date().toISOString(),
           state: "draft",
           privacy: false,
+          contactRequired: !!version.config.discovery?.enabled,
           marketing: false,
         });
         issued = { name: `run_${id}`, token };
@@ -393,6 +395,32 @@ async function handler(
         )
           throw new ApiError(404, "Ejecución no disponible o acceso caducado");
         if (method === "GET") {
+          return safeRun(run);
+        }
+        if (path[3] === "contact" && method === "PUT") {
+          if (
+            run.conversation?.turns.length ||
+            run.conversation?.lease ||
+            run.state !== "draft"
+          )
+            throw new ApiError(
+              409,
+              "Los datos de contacto se registran antes de comenzar la conversación.",
+            );
+          const parsed = leadContactSchema.safeParse(body);
+          if (!parsed.success)
+            throw new ApiError(
+              422,
+              "Revisa tu nombre, WhatsApp con código de país y correo, y acepta el uso de tus datos para atender tu solicitud.",
+            );
+          const { name, whatsapp, email } = parsed.data;
+          run.contact = {
+            name,
+            whatsapp,
+            email,
+            consentedAt: new Date().toISOString(),
+            noticeVersion: "lead-contact-v1",
+          };
           return safeRun(run);
         }
         if (path[3] === "answers" && method === "PUT") {

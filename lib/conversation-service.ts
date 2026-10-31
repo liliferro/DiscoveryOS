@@ -71,6 +71,11 @@ export async function advanceConversation(
         409,
         "Esta sesión utiliza preguntas predefinidas.",
       );
+    if (run.contactRequired && !run.contact)
+      throw new DiscoveryError(
+        422,
+        "Completa tus datos de contacto antes de comenzar la conversación.",
+      );
     const connection =
       state.aiConnections?.[run.tenantId] || defaultConnection();
     if (!connection.enabled || !connectionView(connection).configured)

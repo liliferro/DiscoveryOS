@@ -47,6 +47,12 @@ export function exportLeads(state: State, input: unknown) {
       "Creada (UTC)",
       "Finalizada (UTC)",
       "Estado",
+      "Origen del resultado",
+      "Modelo",
+      "Nombre del prospecto",
+      "WhatsApp",
+      "Correo",
+      "Consentimiento de contacto (UTC)",
       "Resumen",
       "Servicios de interés",
       "Perfil (JSON)",
@@ -71,6 +77,18 @@ export function exportLeads(state: State, input: unknown) {
         : run.state === "draft"
           ? "En curso"
           : run.state,
+      run.conversation
+        ? run.conversation.provider === "fixture"
+          ? "IA simulada de pruebas"
+          : run.conversation.provider === "anthropic"
+            ? "Claude"
+            : "OpenAI"
+        : "Proveedores simulados de cuestionario",
+      run.conversation?.usage.at(-1)?.model || run.report?.model || "",
+      run.contact?.name || "",
+      run.contact?.whatsapp || "",
+      run.contact?.email || "",
+      run.contact?.consentedAt || "",
       run.conversation?.closed
         ? decision?.summary || ""
         : run.report?.summary || "",

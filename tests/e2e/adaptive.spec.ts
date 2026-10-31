@@ -28,6 +28,35 @@ test("Discovery adaptativa: contexto privado, consentimiento, edición, segmenta
         data: { revision: 0, operationId: randomUUID(), privacy: true },
       })
     ).status(),
+  ).toBe(422);
+  expect(
+    (
+      await request.put(`/api/v1/public/runs/${id}/contact`, {
+        data: {
+          name: "Persona de prueba",
+          whatsapp: "+525500000000",
+          email: "persona@example.test",
+          consent: false,
+        },
+      })
+    ).status(),
+  ).toBe(422);
+  const savedContact = await request.put(`/api/v1/public/runs/${id}/contact`, {
+    data: {
+      name: "Persona de prueba",
+      whatsapp: "+52 55 0000 0000",
+      email: "persona@example.test",
+      consent: true,
+    },
+  });
+  expect(savedContact.status()).toBe(200);
+  expect((await savedContact.json()).contact.whatsapp).toBe("+525500000000");
+  expect(
+    (
+      await request.post(url, {
+        data: { revision: 0, operationId: randomUUID(), privacy: true },
+      })
+    ).status(),
   ).toBe(503);
   const key = "sk-ficticia-de-prueba-no-hacer-llamadas";
   const saved = await (
@@ -109,6 +138,23 @@ test("Discovery adaptativa: contexto privado, consentimiento, edición, segmenta
   expect(run.conversation.turns).toHaveLength(4);
   expect(run.state).toBe("completed_limited");
   expect(run.conversation.provider).toBe("fixture");
+  expect(run.contact.email).toBe("persona@example.test");
+  expect(
+    (
+      await request.put(`/api/v1/public/runs/${id}/contact`, {
+        data: {
+          name: "Otra persona",
+          whatsapp: "+525500000000",
+          email: "otra@example.test",
+          consent: true,
+        },
+      })
+    ).status(),
+  ).toBe(409);
+  const leadExport = await request.get(
+    "/api/v1/agency/export?landingId=dental",
+  );
+  expect(leadExport.status()).toBe(403);
   expect(run.patientResult.status).toBe("ready_for_review");
   expect(
     run.patientResult.options.map((s: { service: string }) => s.service),
@@ -144,6 +190,11 @@ test("Discovery adaptativa: contexto privado, consentimiento, edición, segmenta
       (r: { id: string }) => r.id === id,
     ),
   ).toBe(false);
+  const ownerExport = await request.get(
+    "/api/v1/agency/export?landingId=dental",
+  );
+  expect(ownerExport.status()).toBe(200);
+  expect(await ownerExport.text()).toContain("persona@example.test");
 });
 test("Experiencia móvil adaptativa y configuración del objetivo en el panel", async ({
   page,
@@ -176,6 +227,17 @@ test("Experiencia móvil adaptativa y configuración del objetivo en el panel", 
     .getByRole("button", { name: "Explorar mi siguiente paso" })
     .click();
   await page.getByLabel("Entiendo el uso de mis respuestas").check();
+  await page.getByLabel("Tu nombre", { exact: true }).fill("Persona de prueba");
+  await page.getByLabel("Tu WhatsApp con código de país").fill("+525500000000");
+  await page.getByLabel("Tu correo electrónico").fill("persona@example.test");
+  await expect(
+    page.getByRole("button", { name: "Comenzar conversación" }),
+  ).toBeDisabled();
+  await page.getByLabel(/Autorizo que .* use estos datos/).check();
+  await page.screenshot({
+    path: "docs/screenshots/lead-contact-mobile.png",
+    fullPage: true,
+  });
   await page.getByRole("button", { name: "Comenzar conversación" }).click();
   await expect(
     page.getByRole("region", { name: "Preparando tu siguiente paso" }),

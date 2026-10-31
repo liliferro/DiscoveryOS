@@ -12,6 +12,8 @@ El panel registra clientes con nombre, sector, referencia Pantone, color HEX apr
 
 La primera versión se usa con una sola administradora y enlaces `/s/...` dentro de Discovery OS. **Exportar todos los resultados**, **Exportar resultados del cliente** y **Exportar CSV** descargan un archivo UTF-8 para hojas de cálculo. Incluye sesiones en curso y completadas, resumen, intereses, perfil y respuestas; excluye tokens de acceso y configuración de claves. La descarga exige autorización de agencia, aplica el alcance solicitado y neutraliza fórmulas en celdas con contenido no confiable. No hay envíos automáticos ni integración CRM.
 
+Las nuevas sesiones de IA requieren nombre, WhatsApp con prefijo internacional `+` y correo antes de la primera pregunta, con autorización de contacto separada del consentimiento de IA. Se guardan en `run.contact`, con fecha y versión del aviso, y se pueden consultar aunque el visitante no termine la conversación. El formulario no se incluye en el contexto enviado al modelo. El CSV incorpora estos datos y su consentimiento; las sesiones antiguas se conservan sin inventar información de contacto.
+
 ## Despliegue en Vercel + Supabase
 
 Requiere Node.js 24 y un proyecto Supabase dedicado. La configuración de Vercel está en `vercel.json`.

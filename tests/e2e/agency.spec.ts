@@ -253,6 +253,12 @@ test("Panel de agencia: crear cliente, crear landing, editar objetivo y publicar
     path: "docs/screenshots/agency-mobile.png",
     fullPage: true,
   });
+  await page
+    .getByRole("button", { name: "Ver prospectos", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Sesiones", exact: true }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

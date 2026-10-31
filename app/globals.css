@@ -10,6 +10,53 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.lead-contact-form {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  text-align: left;
+  margin: 28px 0;
+  background: #fff;
+}
+.lead-contact-form legend {
+  padding: 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.lead-contact-form > p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.lead-contact-form > label {
+  display: block;
+  margin-top: 18px;
+  font-size: 12px;
+}
+.lead-contact-form > label.checkbox {
+  display: flex;
+  align-items: flex-start;
+  font-weight: 400;
+  line-height: 1.7;
+}
+.lead-contact-details {
+  padding: 24px;
+  margin: 22px 0;
+}
+.lead-contact-details dl {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 10px;
+  margin: 18px 0;
+  font-size: 13px;
+}
+.lead-contact-details dt {
+  color: var(--muted);
+}
+.lead-contact-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .agency-panel h2 {
   font-size: 24px;
   letter-spacing: -0.5px;
