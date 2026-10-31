@@ -329,7 +329,30 @@
   max-width: 490px;
 }
 .processing-copy {
-  min-height: 106px;
+  min-height: 180px;
+}
+.processing-fact {
+  max-width: 460px;
+  margin: 0 auto 16px;
+  animation: processing-enter 0.4s ease-out;
+}
+.processing-fact-topic {
+  display: block;
+  color: var(--brand);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin-bottom: 13px;
+}
+.processing-fact .processing-message {
+  color: #51445e;
+}
+.processing-fact a {
+  display: inline-block;
+  font-size: 10px;
+  color: #766985;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .processing-message {
   font-size: 16px;

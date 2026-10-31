@@ -161,6 +161,7 @@ test("Experiencia móvil adaptativa y configuración del objetivo en el panel", 
     },
   });
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.install();
   let releaseProcessing!: () => void;
   const processingGate = new Promise<void>((resolve) => {
     releaseProcessing = resolve;
@@ -182,6 +183,19 @@ test("Experiencia móvil adaptativa y configuración del objetivo en el panel", 
   await expect(page.getByRole("status")).toContainText(
     "Preparando tu primera pregunta",
   );
+  const initialFact = await page
+    .getByTestId("loading-fact")
+    .getAttribute("data-fact-id");
+  expect(initialFact).toBeTruthy();
+  await page.clock.runFor(8100);
+  await expect(page.getByTestId("loading-fact")).not.toHaveAttribute(
+    "data-fact-id",
+    initialFact!,
+  );
+  await expect(
+    page.getByTestId("loading-fact").getByRole("link"),
+  ).toHaveAttribute("href", /^https:\/\//);
+  await page.clock.resume();
   await page.screenshot({
     path: "docs/screenshots/processing-mobile.png",
     fullPage: true,

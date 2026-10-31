@@ -1,23 +1,30 @@
 "use client";
 import { useEffect, useState } from "react";
 import { AudioLines, Heart, Sparkles } from "lucide-react";
+import type { DiscoveryFact } from "@/lib/discovery-facts";
 
 export default function DiscoveryProcessing({
   first,
   answered,
+  fact,
+  onNextFact,
 }: {
   first: boolean;
   answered: number;
+  fact: DiscoveryFact | null;
+  onNextFact: () => void;
 }) {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
-    const timer = window.setInterval(
-      () => setSeconds((value) => value + 1),
-      1000,
-    );
+    let elapsed = 0;
+    const timer = window.setInterval(() => {
+      elapsed++;
+      setSeconds(elapsed);
+      if (elapsed % 8 === 0) onNextFact();
+    }, 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [onNextFact]);
   const messages = first
     ? [
         "Queremos empezar por lo que es importante para ti.",
@@ -64,9 +71,26 @@ export default function DiscoveryProcessing({
         aria-live="polite"
         aria-atomic="true"
       >
-        <p className="processing-message" key={phase}>
-          {messages[phase]}
-        </p>
+        {fact ? (
+          <div
+            className="processing-fact"
+            key={fact.id}
+            data-testid="loading-fact"
+            data-fact-id={fact.id}
+          >
+            <span className="processing-fact-topic">
+              ¿SABÍAS QUE…? · {fact.topic}
+            </span>
+            <p className="processing-message">{fact.text}</p>
+            <a href={fact.url} target="_blank" rel="noopener noreferrer">
+              Fuente: {fact.source}
+            </a>
+          </div>
+        ) : (
+          <p className="processing-message" key={phase}>
+            {messages[phase]}
+          </p>
+        )}
         <span className="processing-current">
           {seconds >= 20
             ? "Está tardando un poco más. Seguimos esperando la respuesta; no necesitas enviarla de nuevo."

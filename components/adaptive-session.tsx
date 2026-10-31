@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -13,6 +13,7 @@ import type { Run, Config } from "@/lib/domain";
 import { api } from "@/lib/client";
 import LeadSummary from "./lead-summary";
 import DiscoveryProcessing from "./discovery-processing";
+import { pickUnseenFact, type DiscoveryFact } from "@/lib/discovery-facts";
 export default function AdaptiveSession({
   initialRun,
   info,
@@ -41,6 +42,35 @@ export default function AdaptiveSession({
   const name = run?.brand?.name || info?.name;
   const color = run?.brand?.color || info?.color;
   const [operation, setOperation] = useState<string>();
+  const [loadingFact, setLoadingFact] = useState<DiscoveryFact | null>(null);
+  const seenFacts = useRef(new Set<string>());
+  const runId = run?.id;
+  const isDental = run?.tenantId === "dental";
+  const nextLoadingFact = useCallback(() => {
+    if (!isDental || !runId) return;
+    const storageKey = `discovery-facts:v1:${runId}`;
+    try {
+      const stored: unknown = JSON.parse(
+        sessionStorage.getItem(storageKey) || "[]",
+      );
+      if (Array.isArray(stored))
+        for (const id of stored)
+          if (typeof id === "string") seenFacts.current.add(id);
+    } catch {
+      /* La rotación sigue funcionando en memoria si el almacenamiento está bloqueado. */
+    }
+    const fact = pickUnseenFact(seenFacts.current);
+    if (fact) seenFacts.current.add(fact.id);
+    setLoadingFact(fact);
+    try {
+      sessionStorage.setItem(
+        storageKey,
+        JSON.stringify([...seenFacts.current]),
+      );
+    } catch {
+      /* Sin datos personales. */
+    }
+  }, [isDental, runId]);
   async function start() {
     setBusy(true);
     setError("");
@@ -68,6 +98,7 @@ export default function AdaptiveSession({
       setError("");
       return;
     }
+    nextLoadingFact();
     setBusy(true);
     setError("");
     const operationId = operation || crypto.randomUUID();
@@ -133,7 +164,12 @@ export default function AdaptiveSession({
           </div>
         )}
         {busy ? (
-          <DiscoveryProcessing first={!c?.turns.length} answered={index + 1} />
+          <DiscoveryProcessing
+            first={!c?.turns.length}
+            answered={index + 1}
+            fact={loadingFact}
+            onNextFact={nextLoadingFact}
+          />
         ) : c?.closed && run ? (
           <LeadSummary run={run} />
         ) : !c?.turns.length ? (
