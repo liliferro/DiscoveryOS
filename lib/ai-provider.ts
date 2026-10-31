@@ -115,6 +115,11 @@ export async function generateDecision(
       );
     }
     if (!response.ok) {
+      if (response.status === 424)
+        throw new DiscoveryError(
+          503,
+          "La clave de Claude requiere un workspace. Configura ANTHROPIC_WORKSPACE_ID en Vercel o utiliza una clave asociada a un workspace de Anthropic.",
+        );
       if (response.status === 402)
         throw new DiscoveryError(
           402,

@@ -18,6 +18,7 @@ Variables de producción:
 | `AI_PROVIDER` | `openai` o `anthropic`, selección explícita del proveedor |
 | `ANTHROPIC_API_KEY` | Clave de Claude si se selecciona Anthropic |
 | `ANTHROPIC_MODEL` | Modelo Claude; predeterminado `claude-sonnet-5-5` |
+| `ANTHROPIC_WORKSPACE_ID` | ID `wrkspc_...` cuando la clave de Anthropic requiere seleccionar workspace |
 | `APP_BASE_URL` | Origen canónico opcional; Vercel también proporciona sus URLs de sistema |
 | `APP_ENCRYPTION_KEY` | Opcional: 32 bytes en base64 para claves por empresa |
 

@@ -203,7 +203,14 @@ test("No sustituye una denegación por un resultado simulado", async () => {
     /clave no está autorizada/,
   );
 });
-test("Claude usa Messages y adapta el schema sin omitir la validación local", async () => {
+test("Claude usa Messages y adapta el schema sin omitir la validación local", async (t) => {
+  const previousWorkspace = process.env.ANTHROPIC_WORKSPACE_ID;
+  process.env.ANTHROPIC_WORKSPACE_ID = "wrkspc_test";
+  t.after(() => {
+    if (previousWorkspace === undefined)
+      delete process.env.ANTHROPIC_WORKSPACE_ID;
+    else process.env.ANTHROPIC_WORKSPACE_ID = previousWorkspace;
+  });
   const c: Conversation = {
     revision: 0,
     turns: [],
@@ -218,6 +225,7 @@ test("Claude usa Messages y adapta el schema sin omitir la validación local", a
   const fetcher: typeof fetch = async (input, init) => {
     const request = new Request(input, init);
     assert.equal(request.url, "https://api.anthropic.com/v1/messages");
+    assert.equal(request.headers.get("anthropic-workspace-id"), "wrkspc_test");
     const body = await request.json();
     assert.equal(body.output_config.format.type, "json_schema");
     assert.equal(

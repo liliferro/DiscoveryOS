@@ -39,6 +39,9 @@ export async function requestClaude(
     fetch: fetcher,
     maxRetries: 0,
     timeout: 25000,
+    defaultHeaders: process.env.ANTHROPIC_WORKSPACE_ID
+      ? { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID }
+      : undefined,
   });
   try {
     const response = await client.messages.create({
@@ -77,17 +80,32 @@ export async function requestClaude(
         message: e.message.slice(0, 1500),
       });
       const lowCredit = /credit balance|insufficient.*credit/i.test(e.message);
+      const workspaceRequired =
+        /not scoped to a workspace|anthropic-workspace-id/i.test(e.message);
       return Response.json(
         {
-          error: { code: lowCredit ? "insufficient_quota" : "provider_error" },
+          error: {
+            code: workspaceRequired
+              ? "workspace_required"
+              : lowCredit
+                ? "insufficient_quota"
+                : "provider_error",
+          },
         },
-        { status: lowCredit ? 402 : e.status || 502 },
+        { status: workspaceRequired ? 424 : lowCredit ? 402 : e.status || 502 },
       );
     }
     throw e;
   }
 }
 export async function verifyClaude(key: string, model: string) {
-  const client = new Anthropic({ apiKey: key, maxRetries: 0, timeout: 12000 });
+  const client = new Anthropic({
+    apiKey: key,
+    maxRetries: 0,
+    timeout: 12000,
+    defaultHeaders: process.env.ANTHROPIC_WORKSPACE_ID
+      ? { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID }
+      : undefined,
+  });
   await client.models.retrieve(model);
 }
