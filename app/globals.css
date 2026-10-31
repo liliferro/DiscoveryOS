@@ -239,6 +239,211 @@
   line-height: 1.7;
   margin: 22px 0 12px;
 }
+.discovery-processing {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 34px 10px 24px;
+  text-align: center;
+  animation: processing-enter 0.3s ease-out;
+}
+.processing-eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.7px;
+  color: var(--brand);
+}
+.processing-orbit {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  display: grid;
+  place-items: center;
+  margin: 32px auto 24px;
+}
+.processing-halo {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--brand) 15%, transparent),
+    transparent 70%
+  );
+  animation: processing-breathe 3.5s ease-in-out infinite;
+}
+.processing-orbit::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 1px solid color-mix(in srgb, var(--brand) 16%, transparent);
+  border-radius: 50%;
+}
+.processing-orbit::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 2px solid transparent;
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: processing-orbit 6s linear infinite;
+}
+.processing-core {
+  width: 92px;
+  height: 92px;
+  border-radius: 30px;
+  display: grid;
+  place-items: center;
+  color: var(--brand);
+  background: white;
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--brand) 12%, transparent);
+  animation: processing-breathe 3.5s ease-in-out infinite;
+}
+.processing-spark,
+.processing-heart {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: white;
+  color: var(--brand);
+  box-shadow: 0 3px 15px #3422530b;
+  animation: processing-float 4s ease-in-out infinite;
+}
+.processing-spark {
+  top: 22px;
+  right: 12px;
+}
+.processing-heart {
+  bottom: 18px;
+  left: 12px;
+  animation-delay: -2s;
+}
+.discovery-processing h1 {
+  font-size: clamp(28px, 4vw, 38px);
+  line-height: 1.2;
+  letter-spacing: -1px;
+  margin: 0 auto 18px;
+  max-width: 490px;
+}
+.processing-copy {
+  min-height: 106px;
+}
+.processing-message {
+  font-size: 16px;
+  line-height: 1.7;
+  color: #766985;
+  margin: 0 auto 12px;
+  max-width: 440px;
+  animation: processing-enter 0.4s ease-out;
+}
+.processing-current {
+  display: block;
+  max-width: 420px;
+  margin: 0 auto;
+  font-size: 12px;
+  color: #94839f;
+  line-height: 1.7;
+}
+.processing-track {
+  width: 190px;
+  height: 3px;
+  margin: 18px auto 20px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+  border-radius: 4px;
+}
+.processing-track span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--brand);
+  border-radius: inherit;
+  animation: processing-sweep 2.8s ease-in-out infinite;
+}
+.processing-dots {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+.processing-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--brand);
+  animation: processing-breathe 1.8s ease-in-out infinite;
+}
+.processing-dots i:nth-child(2) {
+  animation-delay: 0.3s;
+}
+.processing-dots i:nth-child(3) {
+  animation-delay: 0.6s;
+}
+.processing-footnote {
+  color: #94839f;
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 20px auto 0;
+}
+@keyframes processing-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes processing-breathe {
+  0%,
+  100% {
+    transform: scale(0.96);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+@keyframes processing-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes processing-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes processing-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .discovery-processing,
+  .discovery-processing *,
+  .discovery-processing::before,
+  .discovery-processing::after,
+  .processing-orbit::before,
+  .processing-orbit::after {
+    animation: none !important;
+  }
+  .processing-track span {
+    width: 100%;
+    opacity: 0.45;
+  }
+}
 .adaptive-question > .notice {
   margin-top: 22px;
 }

@@ -50,6 +50,9 @@ export async function requestClaude(
       system: instructions,
       messages: [{ role: "user", content: context }],
       output_config: {
+        ...(/^claude-(sonnet|haiku)-5-5(?:$|-)/.test(model)
+          ? { effort: "medium" as const }
+          : {}),
         format: {
           type: "json_schema",
           schema: claudeSchema(schema) as Record<string, unknown>,

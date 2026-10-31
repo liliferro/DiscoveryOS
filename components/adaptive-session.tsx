@@ -12,6 +12,7 @@ import {
 import type { Run, Config } from "@/lib/domain";
 import { api } from "@/lib/client";
 import LeadSummary from "./lead-summary";
+import DiscoveryProcessing from "./discovery-processing";
 export default function AdaptiveSession({
   initialRun,
   info,
@@ -131,7 +132,9 @@ export default function AdaptiveSession({
             {error}
           </div>
         )}
-        {c?.closed && run ? (
+        {busy ? (
+          <DiscoveryProcessing first={!c?.turns.length} answered={index + 1} />
+        ) : c?.closed && run ? (
           <LeadSummary run={run} />
         ) : !c?.turns.length ? (
           <section className="welcome">

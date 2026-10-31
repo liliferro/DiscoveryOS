@@ -161,6 +161,15 @@ test("Experiencia móvil adaptativa y configuración del objetivo en el panel", 
     },
   });
   await page.setViewportSize({ width: 390, height: 844 });
+  let releaseProcessing!: () => void;
+  const processingGate = new Promise<void>((resolve) => {
+    releaseProcessing = resolve;
+  });
+  await page.route("**/conversation", async (route) => {
+    const response = await route.fetch();
+    await processingGate;
+    await route.fulfill({ response });
+  });
   await page.goto("/s/sonrisa");
   await page
     .getByRole("button", { name: "Explorar mi siguiente paso" })
@@ -168,10 +177,24 @@ test("Experiencia móvil adaptativa y configuración del objetivo en el panel", 
   await page.getByLabel("Entiendo el uso de mis respuestas").check();
   await page.getByRole("button", { name: "Comenzar conversación" }).click();
   await expect(
+    page.getByRole("region", { name: "Preparando tu siguiente paso" }),
+  ).toBeVisible();
+  await expect(page.getByRole("status")).toContainText(
+    "Preparando tu primera pregunta",
+  );
+  await page.screenshot({
+    path: "docs/screenshots/processing-mobile.png",
+    fullPage: true,
+  });
+  releaseProcessing();
+  await expect(
     page.getByRole("heading", {
       name: /Qué te gustaría mejorar de tu sonrisa/,
     }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Preparando tu siguiente paso" }),
+  ).toHaveCount(0);
   await page
     .getByRole("textbox", { name: "Tu respuesta" })
     .fill("Me falta una pieza y quiero conocer opciones");

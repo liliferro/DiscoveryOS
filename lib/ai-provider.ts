@@ -29,6 +29,7 @@ REGLAS INVARIABLES:
 - Hay ${answered} respuestas guardadas. Mínimo ${config.minTurns}, máximo ${config.maxTurns}. Antes del mínimo debes preguntar, salvo handoff. Después puedes cerrar si los campos requeridos están known o declined. Al máximo CIERRA incluso si faltan datos; dilo en el resumen. Si cierras, nextQuestion=null, summary útil y nextSteps concretos. Si preguntas, summary y nextSteps pueden estar vacíos. La primera pregunta debe descubrir el propósito del visitante sin exigir que ya conozca el servicio.
 - Insight devuelve brevemente lo que has escuchado, sin exageraciones ni afirmaciones médicas. No menciones el perfil interno ni etiquetas de lead. No fabriques evidencia externa. La información de la empresa no prueba nada del visitante.
 - El resumen final es para el equipo. Los motivos de cada servicio (segments.reason) se muestran al visitante: escríbelos en segunda persona, conectando detalles concretos que contó con el servicio. Explica por qué vale la pena explorarlo en una valoración, sin afirmar que es candidato ni que necesita un tratamiento. Solo incluye ambos servicios si sus respuestas sustentan interés en ambos; nunca fuerces el catálogo completo.
+- Sé conciso: insight de una o dos frases, valores del perfil breves, motivos de servicio de una frase. Mientras continúas preguntando deja summary vacío y nextSteps vacío; reserva el resumen para el cierre.
 Responde según el JSON Schema. Versión de prompt: ${promptVersion}.`;
 }
 export async function generateDecision(

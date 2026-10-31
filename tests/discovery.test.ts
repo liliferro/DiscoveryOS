@@ -228,6 +228,7 @@ test("Claude usa Messages y adapta el schema sin omitir la validación local", a
     assert.equal(request.headers.get("anthropic-workspace-id"), "wrkspc_test");
     const body = await request.json();
     assert.equal(body.output_config.format.type, "json_schema");
+    assert.equal(body.output_config.effort, "medium");
     assert.equal(
       body.output_config.format.schema.properties.summary.maxLength,
       undefined,
