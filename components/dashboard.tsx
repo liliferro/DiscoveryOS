@@ -1203,6 +1203,11 @@ export default function Dashboard({
               <ArrowRight size={16} />
             </button>
             {cloud && (
+              <Link className="text-link recovery-back" href="/forgot-password">
+                Olvidé mi contraseña
+              </Link>
+            )}
+            {cloud && (
               <button
                 type="button"
                 className="text-link"

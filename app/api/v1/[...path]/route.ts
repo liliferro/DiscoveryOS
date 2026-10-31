@@ -31,6 +31,12 @@ import { processLegacyRun } from "@/lib/job-runner";
 import { handleAgency, AgencyError } from "@/lib/agency";
 import { exportLeads } from "@/lib/lead-export";
 import { leadContactSchema } from "@/lib/lead-contact";
+import {
+  requestPasswordRecovery,
+  beginPasswordRecovery,
+  recoveryStatus,
+  updateRecoveredPassword,
+} from "@/lib/password-recovery";
 export const maxDuration = 60;
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,6 +124,22 @@ async function handler(
       return await cloudLogin(body);
     if (isCloud() && path[0] === "signup" && method === "POST")
       return await cloudSignup(body);
+    if (path[0] === "auth" && path[1]?.startsWith("recovery")) {
+      if (!isCloud())
+        throw new AuthError(
+          503,
+          "La recuperación de contraseña está disponible para las cuentas en la nube.",
+        );
+      if (path[1] === "recovery" && method === "POST")
+        return await requestPasswordRecovery(body, req.nextUrl.origin);
+      if (path[1] === "recovery-session" && method === "POST")
+        return await beginPasswordRecovery(body);
+      if (path[1] === "recovery-session" && method === "GET")
+        return await recoveryStatus(req);
+      if (path[1] === "recovery-password" && method === "POST")
+        return await updateRecoveredPassword(req, body);
+      throw new ApiError(404, "Recurso no disponible");
+    }
     if (isCloud() && ["admin", "agency"].includes(path[0])) {
       cloudAgencyAdmin = (await authorizeCloudAdmin(req)).agencyAdmin;
       if (path[0] === "agency" && !cloudAgencyAdmin)

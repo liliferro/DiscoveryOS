@@ -1949,6 +1949,39 @@ td:first-child {
   background: #21192d70;
   backdrop-filter: blur(8px);
 }
+.recovery-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 28px 16px;
+  background:
+    radial-gradient(ellipse at 50% 0%, #e8e3ff, transparent 65%), var(--surface);
+}
+.recovery-card {
+  width: min(460px, 100%);
+}
+.recovery-card h1 {
+  font-size: clamp(26px, 4vw, 32px);
+  line-height: 1.2;
+  letter-spacing: -1px;
+  margin: 18px 0;
+}
+.recovery-card .wordmark {
+  margin-bottom: 30px;
+}
+.recovery-card .logo {
+  margin-bottom: 0;
+}
+.recovery-card .eyebrow {
+  display: block;
+}
+.recovery-card form .button {
+  margin: 24px 0 12px;
+  width: 100%;
+}
+.recovery-back {
+  margin-top: 22px;
+}
 .public-app .button.primary,
 .public-app .logo {
   color: var(--brand-contrast);
