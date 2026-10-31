@@ -60,11 +60,6 @@ export default function DiscoveryProcessing({
           <Heart size={16} />
         </span>
       </div>
-      <h1>
-        {first
-          ? "Una conversación que empieza contigo."
-          : "Lo que nos cuentas importa."}
-      </h1>
       <div
         className="processing-copy"
         role="status"
@@ -81,10 +76,14 @@ export default function DiscoveryProcessing({
             <span className="processing-fact-topic">
               ¿SABÍAS QUE…? · {fact.topic}
             </span>
-            <p className="processing-message">{fact.text}</p>
-            <a href={fact.url} target="_blank" rel="noopener noreferrer">
-              Fuente: {fact.source}
-            </a>
+            <h1>{fact.text}</h1>
+            {fact.url ? (
+              <a href={fact.url} target="_blank" rel="noopener noreferrer">
+                Fuente: {fact.source}
+              </a>
+            ) : (
+              <small>Fuente: {fact.source}</small>
+            )}
           </div>
         ) : (
           <p className="processing-message" key={phase}>

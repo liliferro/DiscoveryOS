@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -14,7 +14,11 @@ import type { Run, Config } from "@/lib/domain";
 import { api } from "@/lib/client";
 import LeadSummary from "./lead-summary";
 import DiscoveryProcessing from "./discovery-processing";
-import { pickUnseenFact, type DiscoveryFact } from "@/lib/discovery-facts";
+import {
+  identifyFacts,
+  rotateFact,
+  type DiscoveryFact,
+} from "@/lib/discovery-facts";
 export default function AdaptiveSession({
   initialRun,
   info,
@@ -57,11 +61,12 @@ export default function AdaptiveSession({
   const [loadingFact, setLoadingFact] = useState<DiscoveryFact | null>(null);
   const seenFacts = useRef(new Set<string>());
   const runId = run?.id;
-  const isDental =
-    run?.tenantId === "dental" ||
-    /odont|dental/i.test(run?.brand.industry || "");
+  const factInputs =
+    run?.config.loadingFacts || info?.version.config.loadingFacts;
+  const facts = useMemo(() => identifyFacts(factInputs || []), [factInputs]);
+  const lastFact = useRef<string>(undefined);
   const nextLoadingFact = useCallback(() => {
-    if (!isDental || !runId) return;
+    if (!runId) return;
     const storageKey = `discovery-facts:v1:${runId}`;
     try {
       const stored: unknown = JSON.parse(
@@ -73,8 +78,8 @@ export default function AdaptiveSession({
     } catch {
       /* La rotación sigue funcionando en memoria si el almacenamiento está bloqueado. */
     }
-    const fact = pickUnseenFact(seenFacts.current);
-    if (fact) seenFacts.current.add(fact.id);
+    const fact = rotateFact(facts, seenFacts.current, lastFact.current);
+    lastFact.current = fact?.id;
     setLoadingFact(fact);
     try {
       sessionStorage.setItem(
@@ -84,8 +89,9 @@ export default function AdaptiveSession({
     } catch {
       /* Sin datos personales. */
     }
-  }, [isDental, runId]);
+  }, [facts, runId]);
   async function start() {
+    nextLoadingFact();
     setBusy(true);
     setError("");
     try {
@@ -105,14 +111,14 @@ export default function AdaptiveSession({
         });
         setRun(saved);
       }
-      await advance();
+      await advance(false);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
-  async function advance() {
+  async function advance(selectFact = true) {
     if (!run) return;
     if (turn?.answer === answer.trim() && c?.turns[index + 1]) {
       setIndex(index + 1);
@@ -121,7 +127,7 @@ export default function AdaptiveSession({
       setError("");
       return;
     }
-    nextLoadingFact();
+    if (selectFact) nextLoadingFact();
     setBusy(true);
     setError("");
     const operationId = operation || crypto.randomUUID();
@@ -396,7 +402,7 @@ export default function AdaptiveSession({
               <button
                 className="button primary"
                 disabled={busy || !answer.trim()}
-                onClick={advance}
+                onClick={() => advance()}
               >
                 {busy ? (
                   <>

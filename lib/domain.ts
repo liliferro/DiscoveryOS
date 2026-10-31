@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { discoverySchema, type Conversation } from "./discovery.ts";
+import { loadingFactSchema } from "./discovery-facts.ts";
 export const questionSchema = z.object({
   id: z
     .string()
@@ -17,6 +18,7 @@ export const questionSchema = z.object({
     .optional(),
 });
 export const configSchema = z.object({
+  loadingFacts: z.array(loadingFactSchema).max(60).optional(),
   ctaLabel: z.string().trim().min(2).max(100).optional(),
   contactEmail: z.union([z.email(), z.literal("")]).optional(),
   title: z.string().min(3).max(120),

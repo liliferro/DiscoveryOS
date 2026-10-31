@@ -337,7 +337,7 @@ async function handler(
           slug: tenant.slug,
           version: {
             ...tenant.versions.at(-1)!,
-            config: publicConfig(tenant.versions.at(-1)!.config),
+            config: publicConfig(tenant.versions.at(-1)!.config, tenant),
           },
           aiReady: !!state.aiConnections?.[tenant.id]?.enabled,
         };

@@ -652,9 +652,14 @@
   min-height: 180px;
 }
 .processing-fact {
-  max-width: 460px;
+  max-width: 540px;
   margin: 0 auto 16px;
   animation: processing-enter 0.4s ease-out;
+}
+.processing-fact h1 {
+  font-size: clamp(23px, 3vw, 32px);
+  letter-spacing: -0.5px;
+  line-height: 1.35;
 }
 .processing-fact-topic {
   display: block;

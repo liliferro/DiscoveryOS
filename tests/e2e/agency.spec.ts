@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 
 test("Agencia: permisos, cliente con dos objetivos, publicación y sesiones independientes", async ({
   request,
+  page,
 }) => {
   expect((await request.get("/api/v1/agency/dashboard")).status()).toBe(401);
   expect((await request.get("/api/v1/agency/export")).status()).toBe(401);
@@ -94,6 +95,21 @@ test("Agencia: permisos, cliente con dos objetivos, publicación y sesiones inde
   expect(dashboard.agencyAdmin).toBe(true);
   expect(dashboard.tenant.clientId).toBe(client.id);
   const config = dashboard.tenant.draft;
+  const customFacts = [
+    {
+      topic: "Asesoría",
+      text: "La asesoría inicial permite revisar las necesidades del equipo.",
+      source: "Cliente sintético API",
+      url: "",
+    },
+    {
+      topic: "Implementación",
+      text: "La implementación de este catálogo incluye acompañamiento del proyecto.",
+      source: "Cliente sintético API",
+      url: "",
+    },
+  ];
+  config.loadingFacts = customFacts;
   config.discovery.objective =
     "Objetivo modificado solo para la primera landing";
   await request.put("/api/v1/admin/template", { data: config });
@@ -110,6 +126,16 @@ test("Agencia: permisos, cliente con dos objetivos, publicación y sesiones inde
     "wa.me/525500000000",
   );
   expect(publicLanding.version.config.discovery).toBeUndefined();
+  expect(
+    publicLanding.version.config.loadingFacts.map(
+      (fact: { topic: string; text: string; source: string; url: string }) => ({
+        topic: fact.topic,
+        text: fact.text,
+        source: fact.source,
+        url: fact.url,
+      }),
+    ),
+  ).toEqual(customFacts);
   await request.post("/api/v1/agency/switch", {
     data: { landingId: second.id },
   });
@@ -134,6 +160,41 @@ test("Agencia: permisos, cliente con dos objetivos, publicación y sesiones inde
     await request.get(`/api/v1/public/runs/${runId}`)
   ).json();
   expect(persisted.brand.logoUrl).toBe(clientData.logoUrl);
+  expect(
+    persisted.config.loadingFacts.map((fact: { text: string }) => fact.text),
+  ).toEqual(customFacts.map((fact) => fact.text));
+  await page.context().addCookies((await request.storageState()).cookies);
+  await page.clock.install();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/conversation", async (route) => {
+    await gate;
+    await route.abort();
+  });
+  await page.goto(`/r/${runId}`);
+  await page.getByLabel("Entiendo el uso de mis respuestas").check();
+  await page.getByLabel("Tu nombre", { exact: true }).fill("Persona sintética");
+  await page.getByLabel("Tu WhatsApp con código de país").fill("+525500000000");
+  await page.getByLabel("Tu correo electrónico").fill("persona@example.test");
+  await page.getByLabel(/Autorizo que .* use estos datos/).check();
+  await page.getByRole("button", { name: "Comenzar conversación" }).click();
+  const factHeading = page.getByTestId("loading-fact").getByRole("heading");
+  await expect(factHeading).toHaveText(
+    /asesoría inicial|implementación de este catálogo/,
+  );
+  const firstText = await factHeading.textContent();
+  await page.clock.runFor(8100);
+  await expect(factHeading).not.toHaveText(firstText!);
+  await page.clock.runFor(8100);
+  await expect(factHeading).toHaveText(firstText!);
+  await page.screenshot({
+    path: "docs/screenshots/custom-landing-facts.png",
+    fullPage: true,
+  });
+  release();
+  await page.clock.resume();
   const exported = await request.get(
     `/api/v1/agency/export?landingId=${first.id}`,
   );

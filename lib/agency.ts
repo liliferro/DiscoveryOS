@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { State } from "./store.ts";
 import { defaultDiscovery } from "./discovery.ts";
 import { validateConfig, type Tenant } from "./domain.ts";
+import { landingFacts } from "./discovery-facts.ts";
 const httpsUrl = (value: string) => {
   try {
     const url = new URL(value);
@@ -190,6 +191,19 @@ export function handleAgency(
         versions: [],
         published: false,
       };
+      const suggestedFacts = landingFacts(draft, landing);
+      draft.loadingFacts = suggestedFacts.every(
+        (fact) => fact.source === "Catálogo de la empresa",
+      )
+        ? client.products
+            .map((product) => ({
+              topic: product.name,
+              text: product.description.slice(0, 400),
+              source: "Información de la empresa",
+              url: "",
+            }))
+            .filter((fact) => fact.text.length >= 10)
+        : suggestedFacts;
       state.tenants.push(landing);
       return { id: landing.id };
     }

@@ -1,14 +1,26 @@
 "use client";
 import type { Config } from "@/lib/domain";
 import { defaultDiscovery, type DiscoveryConfig } from "@/lib/discovery";
+import { landingFacts, type LoadingFact } from "@/lib/discovery-facts";
 export default function DiscoveryEditor({
   config,
   onChange,
+  brand,
 }: {
   config: Config;
   onChange: (config: Config) => void;
+  brand?: { name: string; industry: string };
 }) {
   const d = config.discovery || defaultDiscovery;
+  const facts = landingFacts(config, brand);
+  const updateFact = (index: number, patch: Partial<LoadingFact>) =>
+    onChange({
+      ...config,
+      loadingFacts: facts.map((fact, i) => {
+        const { topic, text, source, url } = fact;
+        return { topic, text, source, url, ...(i === index ? patch : {}) };
+      }),
+    });
   const update = (patch: Partial<DiscoveryConfig>) =>
     onChange({ ...config, discovery: { ...structuredClone(d), ...patch } });
   return (
@@ -183,6 +195,81 @@ export default function DiscoveryEditor({
             }
           >
             Añadir servicio
+          </button>
+          <h3>Datos durante la espera</h3>
+          <p className="muted small">
+            Facts públicos de esta landing. Se muestran al azar, sin repetir
+            hasta recorrer el banco completo. Revisa los datos y sus fuentes
+            antes de publicar.
+          </p>
+          {facts.map((fact, i) => (
+            <div className="editor-subcard" key={i}>
+              <label>
+                Tema del dato
+                <input
+                  value={fact.topic}
+                  maxLength={100}
+                  onChange={(e) => updateFact(i, { topic: e.target.value })}
+                />
+              </label>
+              <label>
+                Dato educativo
+                <textarea
+                  value={fact.text}
+                  maxLength={400}
+                  onChange={(e) => updateFact(i, { text: e.target.value })}
+                />
+              </label>
+              <label>
+                Fuente del dato
+                <input
+                  value={fact.source}
+                  maxLength={120}
+                  onChange={(e) => updateFact(i, { source: e.target.value })}
+                />
+              </label>
+              <label>
+                Enlace de la fuente (opcional)
+                <input
+                  type="url"
+                  value={fact.url}
+                  onChange={(e) => updateFact(i, { url: e.target.value })}
+                  placeholder="https://…"
+                />
+              </label>
+              <button
+                className="text-link danger"
+                disabled={facts.length <= 1}
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    loadingFacts: facts.filter((_, j) => j !== i),
+                  })
+                }
+              >
+                Eliminar dato
+              </button>
+            </div>
+          ))}
+          <button
+            className="button secondary"
+            disabled={facts.length >= 60}
+            onClick={() =>
+              onChange({
+                ...config,
+                loadingFacts: [
+                  ...facts,
+                  {
+                    topic: "Nuevo tema",
+                    text: "Escribe aquí un dato educativo sobre este servicio.",
+                    source: "Información de la empresa",
+                    url: "",
+                  },
+                ],
+              })
+            }
+          >
+            Añadir dato educativo
           </button>
           <h3>Información que queremos comprender</h3>
           <p className="muted small">

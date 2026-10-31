@@ -717,7 +717,11 @@ export default function Dashboard({
                       }
                     />
                   </label>
-                  <DiscoveryEditor config={config} onChange={setConfig} />
+                  <DiscoveryEditor
+                    config={config}
+                    onChange={setConfig}
+                    brand={tenant}
+                  />
                   {!config.discovery?.enabled && (
                     <div className="question-editor">
                       {config.questions.map((q, i) => (

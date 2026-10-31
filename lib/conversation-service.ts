@@ -8,6 +8,7 @@ import {
 } from "./ai-settings.ts";
 import { DiscoveryError, generateDecision } from "./ai-provider.ts";
 import type { Run } from "./domain.ts";
+import { landingFacts } from "./discovery-facts.ts";
 import { preparePatientResult } from "./patient-result.ts";
 const hash = (value: string) =>
   createHash("sha256").update(value).digest("hex");
@@ -18,11 +19,12 @@ const bodySchema = z.object({
   answer: z.string().trim().min(1).max(2500).optional(),
   privacy: z.boolean().optional(),
 });
-export function publicConfig(config: Run["config"]) {
+export function publicConfig(config: Run["config"], brand?: Run["brand"]) {
   const { discovery, ...rest } = config;
   return discovery?.enabled
     ? {
         title: config.title,
+        loadingFacts: landingFacts(config, brand),
         description: config.description,
         ctaLabel: config.ctaLabel,
         contactEmail: config.contactEmail,
@@ -35,7 +37,7 @@ export function publicConfig(config: Run["config"]) {
 export function publicRun(run: Run) {
   const safe = { ...run } as Partial<Run>;
   delete safe.tokenHash;
-  safe.config = publicConfig(run.config);
+  safe.config = publicConfig(run.config, run.brand);
   if (safe.state !== "completed_limited") delete safe.report;
   if (safe.conversation) {
     const { lease, lastOperation, ...conversation } = safe.conversation;
