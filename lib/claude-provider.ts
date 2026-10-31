@@ -71,6 +71,11 @@ export async function requestClaude(
     });
   } catch (e) {
     if (e instanceof Anthropic.APIError) {
+      console.warn("Claude request rejected", {
+        status: e.status,
+        requestId: e.request_id,
+        message: e.message.slice(0, 1500),
+      });
       const lowCredit = /credit balance|insufficient.*credit/i.test(e.message);
       return Response.json(
         {
