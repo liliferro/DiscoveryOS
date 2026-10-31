@@ -28,6 +28,7 @@ import {
   AuthError,
 } from "@/lib/cloud-auth";
 import { processLegacyRun } from "@/lib/job-runner";
+import { handleAgency, AgencyError } from "@/lib/agency";
 export const maxDuration = 60;
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +53,7 @@ async function handler(
   const method = req.method;
   const requestId = randomUUID();
   let issued: { name: string; token: string } | undefined;
+  let cloudAgencyAdmin = false;
   try {
     if (method !== "GET") {
       if (
@@ -71,11 +73,14 @@ async function handler(
         ]).has(req.headers.get("origin")!)
       )
         throw new ApiError(403, "Origen no permitido");
-      if (Number(req.headers.get("content-length") || 0) > 64000)
+      if (
+        Number(req.headers.get("content-length") || 0) >
+        (path[0] === "agency" ? 200000 : 64000)
+      )
         throw new ApiError(413, "Solicitud demasiado grande");
     }
     const raw = method === "GET" ? "" : await req.text();
-    if (raw.length > 64000)
+    if (raw.length > (path[0] === "agency" ? 200000 : 64000))
       throw new ApiError(413, "Solicitud demasiado grande");
     const body = raw ? JSON.parse(raw) : {};
     if (path[0] === "config" && method === "GET")
@@ -87,7 +92,14 @@ async function handler(
       return await cloudLogin(body);
     if (isCloud() && path[0] === "signup" && method === "POST")
       return await cloudSignup(body);
-    if (isCloud() && path[0] === "admin") await authorizeCloudAdmin(req);
+    if (isCloud() && ["admin", "agency"].includes(path[0])) {
+      cloudAgencyAdmin = (await authorizeCloudAdmin(req)).agencyAdmin;
+      if (path[0] === "agency" && !cloudAgencyAdmin)
+        throw new ApiError(
+          403,
+          "Solo la administración de la agencia puede gestionar clientes y landings.",
+        );
+    }
     if (
       method === "POST" &&
       path[0] === "public" &&
@@ -153,6 +165,7 @@ async function handler(
         state.sessions.push({
           hash: hash(token),
           tenantId: tenant.id,
+          agencyAdmin: tenant.id === "mood",
           expiresAt: Date.now() + 86400000,
         });
         issued = { name: "discovery_admin", token };
@@ -165,6 +178,24 @@ async function handler(
         );
         issued = { name: "discovery_admin", token: "" };
         return { ok: true };
+      }
+      if (path[0] === "agency") {
+        const session = state.sessions.find(
+          (s) =>
+            s.hash === hash(req.cookies.get("discovery_admin")?.value || "") &&
+            s.expiresAt > Date.now(),
+        );
+        if (!session) throw new ApiError(401, "Inicia sesión para continuar");
+        if (
+          !(isCloud()
+            ? cloudAgencyAdmin
+            : session.agencyAdmin || session.tenantId === "mood")
+        )
+          throw new ApiError(
+            403,
+            "Solo la administración de la agencia puede gestionar clientes y landings.",
+          );
+        return handleAgency(state, session, path, method, body);
       }
       if (path[0] === "admin") {
         const credential = req.cookies.get("discovery_admin")?.value;
@@ -205,6 +236,9 @@ async function handler(
         if (path[1] === "dashboard" && method === "GET")
           return {
             tenant,
+            agencyAdmin: isCloud()
+              ? cloudAgencyAdmin
+              : !!session.agencyAdmin || session.tenantId === "mood",
             runs: state.runs
               .filter((r) => r.tenantId === tenant.id)
               .map((r) => ({ ...safeRun(r), config: r.config })),
@@ -221,6 +255,7 @@ async function handler(
             config: structuredClone(config),
           };
           tenant.versions.push(version);
+          tenant.published = true;
           return version;
         }
         if (path[1] === "brand" && method === "PUT") {
@@ -232,7 +267,8 @@ async function handler(
             body.cta.length > 200 ||
             !/^#[0-9a-f]{6}$/i.test(body.color) ||
             !Array.isArray(body.services) ||
-            body.services.length !== 3 ||
+            body.services.length < 1 ||
+            body.services.length > 12 ||
             body.services.some(
               (s: unknown) =>
                 typeof s !== "string" || s.length < 2 || s.length > 120,
@@ -240,12 +276,33 @@ async function handler(
           )
             throw new ApiError(
               422,
-              "Revisa nombre, color, CTA y los tres servicios",
+              "Revisa nombre, color, CTA y el catálogo de servicios",
             );
           tenant.name = body.name;
           tenant.color = body.color;
           tenant.cta = body.cta;
           tenant.services = body.services;
+          const client = state.clients?.find((c) => c.id === tenant.clientId);
+          if (client) {
+            client.name = tenant.name;
+            client.color = tenant.color;
+            client.cta = tenant.cta;
+            client.products = tenant.services.map((name) => ({
+              name,
+              description:
+                client.products.find((p) => p.name === name)?.description ||
+                `Servicio de ${client.name}.`,
+            }));
+            for (const sibling of state.tenants.filter(
+              (t) => t.clientId === client.id,
+            ))
+              Object.assign(sibling, {
+                name: client.name,
+                color: client.color,
+                cta: client.cta,
+                services: client.products.map((p) => p.name),
+              });
+          }
           return { ok: true };
         }
         if (path[1] === "retry" && method === "POST") {
@@ -264,10 +321,12 @@ async function handler(
       }
       if (path[0] === "public" && path[1] === "sessions" && method === "GET") {
         const tenant = state.tenants.find((t) => t.slug === path[2]);
-        if (!tenant) throw new ApiError(404, "Sesión no disponible");
+        if (!tenant || tenant.published === false || !tenant.versions.length)
+          throw new ApiError(404, "Sesión no disponible");
         return {
           name: tenant.name,
           color: tenant.color,
+          logoUrl: tenant.logoUrl,
           slug: tenant.slug,
           version: {
             ...tenant.versions.at(-1)!,
@@ -283,7 +342,8 @@ async function handler(
         method === "POST"
       ) {
         const tenant = state.tenants.find((t) => t.slug === body.slug);
-        if (!tenant) throw new ApiError(404, "Sesión no disponible");
+        if (!tenant || tenant.published === false || !tenant.versions.length)
+          throw new ApiError(404, "Sesión no disponible");
         if (
           state.runs.filter(
             (r) =>
@@ -298,7 +358,12 @@ async function handler(
         state.runs.push({
           id,
           tenantId: tenant.id,
-          brand: { name: tenant.name, color: tenant.color },
+          brand: {
+            name: tenant.name,
+            color: tenant.color,
+            logoUrl: tenant.logoUrl,
+            industry: tenant.industry,
+          },
           versionId: version.id,
           version: version.number,
           config: structuredClone(version.config),
@@ -413,6 +478,7 @@ async function handler(
   } catch (error) {
     const status =
       error instanceof ApiError ||
+      error instanceof AgencyError ||
       error instanceof DiscoveryError ||
       error instanceof AuthError
         ? error.status
@@ -422,6 +488,7 @@ async function handler(
         code: status === 422 ? "VALIDATION_ERROR" : "REQUEST_ERROR",
         message:
           error instanceof ApiError ||
+          error instanceof AgencyError ||
           error instanceof DiscoveryError ||
           error instanceof AuthError
             ? error.message

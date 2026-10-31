@@ -18,6 +18,7 @@ import AdaptiveSession from "./adaptive-session";
 type PublicSession = {
   name: string;
   color: string;
+  logoUrl?: string;
   slug: string;
   version: { number: number; config: Config };
 };

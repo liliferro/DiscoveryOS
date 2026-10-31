@@ -2,6 +2,14 @@
 
 MVP configurable de conversaciones de discovery. Cada empresa define objetivo, contexto, catálogo y datos que desea comprender; la IA analiza cada respuesta y genera la siguiente pregunta. Incluye plantillas de Mood Agency, Norte Industrial y Clínica Sonrisa.
 
+## Panel de agencia
+
+Entrar en `/agency` con la cuenta responsable de **Mood Agency**. En nube, únicamente una membresía activa `owner` del espacio `mood` concede administración de agencia; se comprueba en servidor en cada solicitud, sin confiar en metadatos editables del usuario. Los demás responsables y analistas conservan acceso solo a su espacio. El modo local permite probarlo con el acceso demo de Mood Agency.
+
+El panel registra clientes con nombre, sector, referencia Pantone, color HEX aprobado para la web, logo subido o URL HTTPS, objetivo, contexto, catálogo de productos, CTA y contacto (WhatsApp, correo o enlace HTTPS). Cada cliente puede tener varias landings. Cada landing copia la configuración inicial del cliente y conserva su propio objetivo, borrador, versiones, URL y sesiones. Crear una landing no la publica: hay que publicarla expresamente. La marca visual se comparte entre las landings del cliente; las conversaciones ya iniciadas conservan su configuración y su marca capturada.
+
+**Editar conversación** abre el Constructor de esa landing, donde se ajustan objetivo, contexto, productos, campos, CTA y contacto antes de publicar. Los clientes y las landings se guardan en el documento privado de Supabase del MVP; no se crean usuarios ni se comparten accesos externos al registrar un cliente. La normalización por entidad y las invitaciones de acceso para equipos de clientes quedan fuera de esta primera versión. Los tres espacios originales se conservan como clientes con una landing cada uno.
+
 ## Despliegue en Vercel + Supabase
 
 Requiere Node.js 24 y un proyecto Supabase dedicado. La configuración de Vercel está en `vercel.json`.

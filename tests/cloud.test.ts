@@ -9,6 +9,7 @@ test("Persistencia cloud con CAS, aislamiento de namespaces y autorización de m
   const rows = new Map<string, { revision: number; value: State }>();
   let role = "owner";
   let active = true;
+  let agencyOwner = false;
   const userId = "f277fbd9-4660-43ef-ab00-8c398b2081b9";
   const server = createServer(async (req, res) => {
     const url = new URL(req.url!, "http://localhost");
@@ -18,6 +19,10 @@ test("Persistencia cloud con CAS, aislamiento de namespaces y autorización de m
       return;
     }
     if (url.pathname.endsWith("/discovery_memberships")) {
+      if (url.searchParams.get("tenant_id") === "eq.mood") {
+        res.end(JSON.stringify(agencyOwner ? [{ role: "owner" }] : []));
+        return;
+      }
       res.end(JSON.stringify(active ? [{ role }] : []));
       return;
     }
@@ -102,11 +107,15 @@ test("Persistencia cloud con CAS, aislamiento de namespaces y autorización de m
         },
       });
     assert.equal((await authorizeCloudAdmin(request())).tenantId, "dental");
+    assert.equal((await authorizeCloudAdmin(request())).agencyAdmin, false);
     role = "analyst";
     await assert.rejects(
       () => authorizeCloudAdmin(request("PUT")),
       /Solo el responsable/,
     );
+    agencyOwner = true;
+    assert.equal((await authorizeCloudAdmin(request("PUT"))).agencyAdmin, true);
+    agencyOwner = false;
     active = false;
     await assert.rejects(
       () => authorizeCloudAdmin(request()),

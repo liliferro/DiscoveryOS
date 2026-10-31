@@ -18,6 +18,7 @@ import {
   LogOut,
   ExternalLink,
   CircleHelp,
+  Building2,
 } from "lucide-react";
 import type { Config, Run, Tenant, Question } from "@/lib/domain";
 import { api } from "@/lib/client";
@@ -25,7 +26,8 @@ import ReportView from "./report";
 import DiscoveryEditor from "./discovery-editor";
 import AiConnectionPanel from "./ai-connection";
 import LeadSummary from "./lead-summary";
-type Data = { tenant: Tenant; runs: Run[] };
+import AgencyPanel from "./agency-panel";
+type Data = { tenant: Tenant; runs: Run[]; agencyAdmin?: boolean };
 const tabs = [
   { name: "Vista general", icon: LayoutDashboard },
   { name: "Sesiones", icon: Layers },
@@ -33,9 +35,13 @@ const tabs = [
   { name: "Integraciones", icon: Plug },
   { name: "Configuración", icon: Settings2 },
 ];
-export default function Dashboard() {
+export default function Dashboard({
+  agencyDefault = false,
+}: {
+  agencyDefault?: boolean;
+}) {
   const [data, setData] = useState<Data>();
-  const [tab, setTab] = useState("Vista general");
+  const [tab, setTab] = useState(agencyDefault ? "Agencia" : "Vista general");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [login, setLogin] = useState(false);
@@ -137,11 +143,23 @@ export default function Dashboard() {
           <span className="avatar">{tenant?.name.slice(0, 1) || "M"}</span>
           <span>
             <strong>{tenant?.name || "Mood Agency"}</strong>
-            <small>Workspace de demostración</small>
+            <small>{tenant?.landingName || "Workspace de demostración"}</small>
           </span>
           <ChevronDown size={15} />
         </button>
         <nav>
+          {data?.agencyAdmin && (
+            <button
+              className={tab === "Agencia" ? "nav-item active" : "nav-item"}
+              onClick={() => {
+                setTab("Agencia");
+                setSelected(undefined);
+              }}
+            >
+              <Building2 size={18} />
+              Agencia · Clientes
+            </button>
+          )}
           {tabs.map((t) => (
             <button
               className={tab === t.name ? "nav-item active" : "nav-item"}
@@ -230,23 +248,29 @@ export default function Dashboard() {
               <h1>
                 {selected
                   ? "Informe de discovery"
-                  : tab === "Vista general"
-                    ? "Todo empieza con una buena pregunta."
-                    : tab}
+                  : tab === "Agencia"
+                    ? "Tu agencia. Todas tus marcas."
+                    : tab === "Vista general"
+                      ? "Todo empieza con una buena pregunta."
+                      : tab}
               </h1>
               <p>
                 {tab === "Vista general"
                   ? "Escucha mejor. Conecta los puntos. Descubre la siguiente oportunidad."
-                  : "Tu metodología, tu marca y una nueva forma de descubrir oportunidades."}
+                  : tab === "Agencia"
+                    ? "Crea clientes, define sus objetivos y publica conversaciones que llevan a la acción."
+                    : "Tu metodología, tu marca y una nueva forma de descubrir oportunidades."}
               </p>
             </div>
-            <a
-              className="button primary"
-              href={`/s/${tenant?.slug || "mood"}`}
-              target="_blank"
-            >
-              Nueva discovery <Plus size={17} />
-            </a>
+            {tab !== "Agencia" && (
+              <a
+                className="button primary"
+                href={`/s/${tenant?.slug || "mood"}`}
+                target="_blank"
+              >
+                Nueva discovery <Plus size={17} />
+              </a>
+            )}
           </div>
           {error && (
             <div className="error" role="alert">
@@ -257,6 +281,21 @@ export default function Dashboard() {
             <div className="success" role="status">
               <Check size={16} />
               {message}
+            </div>
+          )}
+          {tab === "Agencia" && data?.agencyAdmin && (
+            <AgencyPanel
+              onOpenLanding={async (id) => {
+                await api("agency/switch", "POST", { landingId: id });
+                await refresh();
+                setSelected(undefined);
+                setTab("Constructor");
+              }}
+            />
+          )}
+          {tab === "Agencia" && data && !data.agencyAdmin && (
+            <div className="notice">
+              Este panel está reservado a la administración de la agencia.
             </div>
           )}
           {selected?.conversation?.closed ? (
@@ -899,11 +938,9 @@ export default function Dashboard() {
                           name: f.get("name"),
                           color: f.get("color"),
                           cta: f.get("cta"),
-                          services: [
-                            f.get("s0") || tenant.services[0],
-                            f.get("s1") || tenant.services[1],
-                            f.get("s2") || tenant.services[2],
-                          ],
+                          services: tenant.services.map(
+                            (service, index) => f.get("s" + index) || service,
+                          ),
                         }),
                       "Identidad actualizada",
                     );

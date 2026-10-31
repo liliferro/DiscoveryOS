@@ -17,6 +17,8 @@ export const questionSchema = z.object({
     .optional(),
 });
 export const configSchema = z.object({
+  ctaLabel: z.string().trim().min(2).max(100).optional(),
+  contactEmail: z.union([z.email(), z.literal("")]).optional(),
   title: z.string().min(3).max(120),
   description: z.string().max(500),
   bookingUrl: z
@@ -40,6 +42,10 @@ export type Config = z.infer<typeof configSchema>;
 export type Question = Config["questions"][number];
 export type Answers = Record<string, string | number | boolean | string[]>;
 export type Tenant = {
+  clientId?: string;
+  landingName?: string;
+  published?: boolean;
+  logoUrl?: string;
   id: string;
   name: string;
   slug: string;
@@ -76,7 +82,7 @@ export type Report = {
 export type Run = {
   id: string;
   tenantId: string;
-  brand: { name: string; color: string };
+  brand: { name: string; color: string; logoUrl?: string; industry?: string };
   versionId: string;
   version: number;
   config: Config;

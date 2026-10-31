@@ -10,6 +10,8 @@ export default function LeadSummary({
 }) {
   const c = run.conversation;
   const d = c?.decision;
+  const isDental =
+    run.tenantId === "dental" || /odont|dental/i.test(run.brand.industry || "");
   if (!c || !d) return null;
   if (!internal) {
     const options =
@@ -43,8 +45,8 @@ export default function LeadSummary({
                 <h2>{option.service}</h2>
                 <p>{option.reason}</p>
                 <small>
-                  En tu cita podremos revisar si esta opción es adecuada para ti
-                  y qué alternativas existen.
+                  En una conversación con el equipo podremos revisar si esta
+                  opción se ajusta a lo que buscas y qué alternativas existen.
                 </small>
               </article>
             ))}
@@ -62,9 +64,8 @@ export default function LeadSummary({
               <CalendarDays size={28} aria-hidden="true" />
               <h2>El siguiente paso es conocernos.</h2>
               <p>
-                Agenda tu valoración con {run.brand.name}. El equipo podrá
-                escucharte, revisar tu caso y explicarte las opciones antes de
-                que tomes una decisión.
+                Habla con {run.brand.name}. El equipo podrá escucharte y
+                explicarte las opciones antes de que tomes una decisión.
               </p>
               {bookingUrl ? (
                 <a
@@ -73,7 +74,16 @@ export default function LeadSummary({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Agendar mi valoración <ArrowRight size={18} />
+                  {run.config.ctaLabel || "Agendar mi valoración"}{" "}
+                  <ArrowRight size={18} />
+                </a>
+              ) : run.config.contactEmail ? (
+                <a
+                  className="button primary"
+                  href={`mailto:${encodeURIComponent(run.config.contactEmail)}`}
+                >
+                  {run.config.ctaLabel || "Contactar al equipo"}{" "}
+                  <ArrowRight size={18} />
                 </a>
               ) : (
                 <p className="notice">
@@ -82,20 +92,23 @@ export default function LeadSummary({
               )}
               {bookingUrl && new URL(bookingUrl).hostname === "wa.me" && (
                 <small>
-                  Te llevaremos a WhatsApp para solicitar tu cita. Tú decides
-                  cuándo enviar el mensaje.
+                  {isDental
+                    ? "Te llevaremos a WhatsApp para solicitar tu cita. Tú decides cuándo enviar el mensaje."
+                    : "Te llevaremos a WhatsApp para contactar al equipo. Tú decides cuándo enviar el mensaje."}
                 </small>
               )}
             </div>
             <p className="small muted patient-footnote">
-              Esta orientación se basa en lo que nos contaste. La valoración
-              odontológica confirmará qué tratamientos son adecuados para ti.
+              {isDental
+                ? "Esta orientación se basa en lo que nos contaste. La valoración odontológica confirmará qué tratamientos son adecuados para ti."
+                : "Esta orientación se basa en tus respuestas. El equipo te ayudará a confirmar qué opciones se ajustan a tus necesidades."}
             </p>
           </>
         )}
         <p className="small muted">
           Tus respuestas y el resultado quedaron guardados para que el equipo
-          pueda revisarlos. La cita se confirma directamente con la clínica.
+          pueda revisarlos. El siguiente paso se confirma directamente con el
+          equipo.
         </p>
       </section>
     );
@@ -113,8 +126,9 @@ export default function LeadSummary({
       </span>
       <p className="lead-text">{d.summary}</p>
       <div className="notice">
-        Esta conversación orienta el interés del visitante. No constituye
-        diagnóstico, indicación de tratamiento ni confirmación de idoneidad.
+        {isDental
+          ? "Esta conversación orienta el interés del visitante. No constituye diagnóstico, indicación de tratamiento ni confirmación de idoneidad."
+          : "Esta conversación recoge intereses declarados para que el equipo pueda preparar el siguiente paso."}
       </div>
       {d.segments.length > 0 && (
         <>

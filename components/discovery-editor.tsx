@@ -30,6 +30,27 @@ export default function DiscoveryEditor({
       {d.enabled && (
         <>
           <label>
+            Texto del call to action
+            <input
+              maxLength={100}
+              value={config.ctaLabel || ""}
+              placeholder="Agendar mi valoración"
+              onChange={(e) =>
+                onChange({ ...config, ctaLabel: e.target.value || undefined })
+              }
+            />
+          </label>
+          <label>
+            Correo de contacto alternativo
+            <input
+              type="email"
+              value={config.contactEmail || ""}
+              onChange={(e) =>
+                onChange({ ...config, contactEmail: e.target.value })
+              }
+            />
+          </label>
+          <label>
             Enlace para agendar una valoración
             <input
               type="url"

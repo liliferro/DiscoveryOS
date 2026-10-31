@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   AudioLines,
@@ -22,6 +23,7 @@ export default function AdaptiveSession({
   info?: {
     name: string;
     color: string;
+    logoUrl?: string;
     slug: string;
     version: { config: Config };
   };
@@ -45,7 +47,9 @@ export default function AdaptiveSession({
   const [loadingFact, setLoadingFact] = useState<DiscoveryFact | null>(null);
   const seenFacts = useRef(new Set<string>());
   const runId = run?.id;
-  const isDental = run?.tenantId === "dental";
+  const isDental =
+    run?.tenantId === "dental" ||
+    /odont|dental/i.test(run?.brand.industry || "");
   const nextLoadingFact = useCallback(() => {
     if (!isDental || !runId) return;
     const storageKey = `discovery-facts:v1:${runId}`;
@@ -151,7 +155,19 @@ export default function AdaptiveSession({
           </span>
           discovery<span className="os">OS</span>
         </Link>
-        <span className="public-brand">{name}</span>
+        <span className="public-brand">
+          {(run?.brand.logoUrl || info?.logoUrl) && (
+            <Image
+              className="public-client-logo"
+              src={(run?.brand.logoUrl || info?.logoUrl)!}
+              alt={`Logo de ${name}`}
+              width={110}
+              height={42}
+              unoptimized
+            />
+          )}
+          {name}
+        </span>
         <span className="demo-pill">
           <span />
           Discovery conversacional

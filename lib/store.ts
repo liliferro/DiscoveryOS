@@ -3,14 +3,17 @@ import type { Run, Tenant } from "./domain.ts";
 import type { AiConnection } from "./ai-settings.ts";
 import { isCloud, supabaseServer, cloudNamespace } from "./cloud.ts";
 import { dentalBookingUrl, preparePatientResult } from "./patient-result.ts";
+import type { AgencyClient } from "./agency.ts";
 export type State = {
   tenants: Tenant[];
+  clients?: AgencyClient[];
   runs: Run[];
   sessions: {
     hash: string;
     tenantId: string;
     expiresAt: number;
     userId?: string;
+    agencyAdmin?: boolean;
   }[];
   aiConnections?: Record<string, AiConnection>;
   aiDaily?: Record<string, number>;
@@ -30,6 +33,39 @@ function migrate(state: State) {
   for (const run of state.runs) {
     if (run.tenantId === "dental") run.config.bookingUrl ??= dentalBookingUrl;
     preparePatientResult(run);
+  }
+  state.clients ||= [];
+  for (const tenant of state.tenants) {
+    if (tenant.clientId) continue;
+    tenant.clientId = tenant.id;
+    tenant.landingName = tenant.draft.title;
+    tenant.published = tenant.versions.length > 0;
+    if (!state.clients.some((client) => client.id === tenant.id))
+      state.clients.push({
+        id: tenant.id,
+        name: tenant.name,
+        industry: tenant.industry,
+        pantone: "",
+        color: tenant.color,
+        logoUrl: tenant.logoUrl || "",
+        objective:
+          tenant.draft.discovery?.objective ||
+          "Comprender necesidades y generar oportunidades para la empresa.",
+        context: tenant.draft.discovery?.context || "",
+        products:
+          tenant.draft.discovery?.services ||
+          tenant.services.map((name) => ({
+            name,
+            description: `Servicio ofrecido por ${tenant.name}.`,
+          })),
+        cta: tenant.cta,
+        contactType: tenant.id === "dental" ? "whatsapp" : "url",
+        contactValue:
+          tenant.id === "dental"
+            ? "+525523153249"
+            : tenant.draft.bookingUrl || "",
+        createdAt: new Date(0).toISOString(),
+      });
   }
 }
 export async function transaction<T>(fn: (state: State) => T): Promise<T> {

@@ -24,6 +24,8 @@ export function publicConfig(config: Run["config"]) {
     ? {
         title: config.title,
         description: config.description,
+        ctaLabel: config.ctaLabel,
+        contactEmail: config.contactEmail,
         questions: [],
         bookingUrl: config.bookingUrl,
         mode: "adaptive" as const,

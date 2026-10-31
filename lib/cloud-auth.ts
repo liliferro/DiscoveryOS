@@ -25,6 +25,22 @@ async function membership(userId: string, tenantId: string) {
     throw new AuthError(403, "Tu usuario no tiene acceso a esta empresa.");
   return result.data.role as "owner" | "analyst";
 }
+async function agencyMembership(userId: string) {
+  const result = await supabaseServer()
+    .from("discovery_memberships")
+    .select("role")
+    .eq("namespace", cloudNamespace())
+    .eq("user_id", userId)
+    .eq("tenant_id", "mood")
+    .eq("active", true)
+    .maybeSingle();
+  if (result.error)
+    throw new AuthError(
+      503,
+      "No se pudieron comprobar los permisos de agencia.",
+    );
+  return result.data?.role === "owner";
+}
 export async function cloudLogin(input: unknown) {
   const data = input as Record<string, unknown>;
   if (
@@ -51,7 +67,12 @@ export async function cloudLogin(input: unknown) {
     if (claim.error)
       throw new AuthError(503, "No se pudo completar la autorización inicial.");
   }
-  await membership(auth.data.user.id, data.tenantId);
+  if (!(await agencyMembership(auth.data.user.id)))
+    await membership(auth.data.user.id, data.tenantId);
+  const exists = await transaction((state) =>
+    state.tenants.some((t) => t.id === data.tenantId),
+  );
+  if (!exists) throw new AuthError(404, "Empresa no disponible.");
   const token = randomBytes(32).toString("hex");
   const hash = createHash("sha256").update(token).digest("hex");
   await transaction((state) => {
@@ -134,11 +155,14 @@ export async function authorizeCloudAdmin(req: NextRequest) {
   const auth = await supabasePublic().auth.getUser(jwt);
   if (auth.error || auth.data.user?.id !== session.userId)
     throw new AuthError(401, "Tu sesión caducó.");
-  const role = await membership(session.userId, session.tenantId);
+  const agencyAdmin = await agencyMembership(session.userId);
+  const role = agencyAdmin
+    ? "owner"
+    : await membership(session.userId, session.tenantId);
   if (req.method !== "GET" && role !== "owner")
     throw new AuthError(
       403,
       "Solo el responsable puede cambiar esta configuración.",
     );
-  return session;
+  return { ...session, agencyAdmin };
 }
