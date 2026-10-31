@@ -203,12 +203,18 @@ export default function DiscoveryEditor({
             antes de publicar.
           </p>
           {facts.map((fact, i) => (
-            <div className="editor-subcard" key={i}>
+            <details className="editor-subcard fact-editor" key={i}>
+              <summary>
+                <span>
+                  {String(i + 1).padStart(2, "0")} · {fact.topic}
+                </span>
+                <small>{fact.text}</small>
+              </summary>
               <label>
                 Tema del dato
                 <input
                   value={fact.topic}
-                  maxLength={100}
+                  maxLength={120}
                   onChange={(e) => updateFact(i, { topic: e.target.value })}
                 />
               </label>
@@ -249,7 +255,7 @@ export default function DiscoveryEditor({
               >
                 Eliminar dato
               </button>
-            </div>
+            </details>
           ))}
           <button
             className="button secondary"

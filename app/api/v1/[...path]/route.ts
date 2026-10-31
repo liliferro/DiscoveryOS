@@ -36,8 +36,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const hash = (value: string) =>
   createHash("sha256").update(value).digest("hex");
-function safeRun(run: Run) {
-  return publicRun(run);
+function safeRun(run: Run, internal = false) {
+  return publicRun(run, internal);
 }
 class ApiError extends Error {
   constructor(
@@ -46,6 +46,35 @@ class ApiError extends Error {
   ) {
     super(message);
   }
+}
+async function readBody(
+  req: NextRequest,
+  limit: number,
+): Promise<Record<string, unknown>> {
+  const reader = req.body?.getReader();
+  if (!reader) return {};
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  while (true) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    length += chunk.value.byteLength;
+    if (length > limit) {
+      await reader.cancel();
+      throw new ApiError(413, "Solicitud demasiado grande");
+    }
+    chunks.push(chunk.value);
+  }
+  if (!length) return {};
+  let body: unknown;
+  try {
+    body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    throw new ApiError(422, "El formato de la solicitud no es válido.");
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    throw new ApiError(422, "La solicitud debe contener un objeto JSON.");
+  return body as Record<string, unknown>;
 }
 async function handler(
   req: NextRequest,
@@ -57,6 +86,7 @@ async function handler(
   let issued: { name: string; token: string } | undefined;
   let cloudAgencyAdmin = false;
   try {
+    const bodyLimit = ["admin", "agency"].includes(path[0]) ? 262144 : 64000;
     if (method !== "GET") {
       if (
         req.headers.get("origin") &&
@@ -75,16 +105,10 @@ async function handler(
         ]).has(req.headers.get("origin")!)
       )
         throw new ApiError(403, "Origen no permitido");
-      if (
-        Number(req.headers.get("content-length") || 0) >
-        (path[0] === "agency" ? 200000 : 64000)
-      )
+      if (Number(req.headers.get("content-length") || 0) > bodyLimit)
         throw new ApiError(413, "Solicitud demasiado grande");
     }
-    const raw = method === "GET" ? "" : await req.text();
-    if (raw.length > (path[0] === "agency" ? 200000 : 64000))
-      throw new ApiError(413, "Solicitud demasiado grande");
-    const body = raw ? JSON.parse(raw) : {};
+    const body = method === "GET" ? {} : await readBody(req, bodyLimit);
     if (path[0] === "config" && method === "GET")
       return NextResponse.json(
         { cloud: isCloud(), auth: isCloud() ? "supabase" : "demo" },
@@ -224,6 +248,15 @@ async function handler(
           const input = connectionSchema.parse(body);
           state.aiConnections ||= {};
           const current = state.aiConnections[tenant.id] || defaultConnection();
+          const providerChanged =
+            !!input.provider &&
+            input.provider !== (current.provider || "openai");
+          if (providerChanged && current.cipher && !input.apiKey?.trim())
+            throw new ApiError(
+              422,
+              "Al cambiar de proveedor, introduce la clave del nuevo proveedor.",
+            );
+          if (providerChanged) current.verified = false;
           if (input.apiKey?.trim()) {
             if (input.apiKey.trim().length < 20)
               throw new ApiError(422, "La clave parece incompleta");
@@ -253,7 +286,7 @@ async function handler(
               : !!session.agencyAdmin || session.tenantId === "mood",
             runs: state.runs
               .filter((r) => r.tenantId === tenant.id)
-              .map((r) => ({ ...safeRun(r), config: r.config })),
+              .map((r) => ({ ...safeRun(r, true), config: r.config })),
           };
         if (path[1] === "template" && method === "PUT") {
           tenant.draft = validateConfig(body);
@@ -277,6 +310,7 @@ async function handler(
             body.name.length > 100 ||
             typeof body.cta !== "string" ||
             body.cta.length > 200 ||
+            typeof body.color !== "string" ||
             !/^#[0-9a-f]{6}$/i.test(body.color) ||
             !Array.isArray(body.services) ||
             body.services.length < 1 ||
@@ -349,7 +383,11 @@ async function handler(
             ...tenant.versions.at(-1)!,
             config: publicConfig(tenant.versions.at(-1)!.config, tenant),
           },
-          aiReady: !!state.aiConnections?.[tenant.id]?.enabled,
+          aiReady: (() => {
+            const connection =
+              state.aiConnections?.[tenant.id] || defaultConnection();
+            return connection.enabled && connectionView(connection).configured;
+          })(),
         };
       }
       if (
@@ -477,9 +515,10 @@ async function handler(
             stage: 0,
             attempts: 0,
             nextAt: Date.now(),
-            scenario: ["timeout", "unavailable"].includes(body.scenario)
-              ? body.scenario
-              : "normal",
+            scenario:
+              body.scenario === "timeout" || body.scenario === "unavailable"
+                ? body.scenario
+                : "normal",
             sources: [],
           };
           return { id: run.id, state: run.state };
@@ -535,30 +574,47 @@ async function handler(
         path: "/",
         maxAge: issued.token ? 86400 * 7 : 0,
       });
+    if (path[0] === "logout" && method === "POST")
+      response.cookies.set("discovery_auth", "", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 0,
+      });
     return response;
   } catch (error) {
-    const status =
-      error instanceof ApiError ||
-      error instanceof AgencyError ||
-      error instanceof DiscoveryError ||
-      error instanceof AuthError
+    const infrastructureFailure =
+      error instanceof Error &&
+      /^(CLOUD_|VAULT_|INVALID_APP_ENCRYPTION_KEY)/.test(error.message);
+    const status = infrastructureFailure
+      ? 503
+      : error instanceof ApiError ||
+          error instanceof AgencyError ||
+          error instanceof DiscoveryError ||
+          error instanceof AuthError
         ? error.status
         : 422;
     return NextResponse.json(
       {
         code: status === 422 ? "VALIDATION_ERROR" : "REQUEST_ERROR",
-        message:
-          error instanceof ApiError ||
-          error instanceof AgencyError ||
-          error instanceof DiscoveryError ||
-          error instanceof AuthError
-            ? error.message
-            : status === 422
-              ? "Revisa los datos: " +
-                (error instanceof Error
-                  ? error.message.slice(0, 250)
-                  : "entrada inválida")
-              : "Error en la solicitud",
+        message: infrastructureFailure
+          ? "No se pudo acceder al servicio en este momento. Espera unos segundos y vuelve a intentarlo."
+          : path[0] === "public" &&
+              error instanceof DiscoveryError &&
+              [402, 424, 502, 503].includes(status)
+            ? "No pudimos preparar tu siguiente pregunta. Reintenta en unos minutos o contacta al equipo."
+            : error instanceof ApiError ||
+                error instanceof AgencyError ||
+                error instanceof DiscoveryError ||
+                error instanceof AuthError
+              ? error.message
+              : status === 422
+                ? "Revisa los datos: " +
+                  (error instanceof Error
+                    ? error.message.slice(0, 250)
+                    : "entrada inválida")
+                : "Error en la solicitud",
         request_id: requestId,
       },
       { status, headers: { "Cache-Control": "no-store" } },

@@ -27,6 +27,10 @@ test("Una respuesta oculta se elimina y no se exige al enviar", () => {
   assert.equal(a.has_site, false);
 });
 test("Un campo condicional visible es obligatorio", () => {
+  assert.throws(
+    () => validateAnswers(seed()[0].draft, { company: "   " }, true),
+    /Responde/,
+  );
   assert.throws(() =>
     validateAnswers(
       seed()[0].draft,

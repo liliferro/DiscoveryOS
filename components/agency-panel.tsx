@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import BrandLogo from "./brand-logo";
 import {
   Building2,
   Plus,
@@ -602,12 +603,12 @@ export default function AgencyPanel({
           >
             <div className="agency-brand-mark">
               {selected.logoUrl ? (
-                <Image
+                <BrandLogo
                   src={selected.logoUrl}
                   alt={`Logo de ${selected.name}`}
                   width={90}
                   height={70}
-                  unoptimized
+                  fallback={<Building2 size={32} aria-hidden="true" />}
                 />
               ) : (
                 <Building2 size={32} />
@@ -1067,12 +1068,12 @@ export default function AgencyPanel({
                   <div className="agency-section-heading">
                     <div className="agency-brand-mark">
                       {client.logoUrl ? (
-                        <Image
+                        <BrandLogo
                           src={client.logoUrl}
                           alt={`Logo de ${client.name}`}
                           width={80}
                           height={50}
-                          unoptimized
+                          fallback={<Building2 size={27} aria-hidden="true" />}
                         />
                       ) : (
                         <Building2 size={25} />

@@ -3,7 +3,11 @@ export default defineConfig({
   testDir: "./tests/e2e",
   workers: 1,
   timeout: 60000,
-  use: { baseURL: "http://127.0.0.1:3100", trace: "retain-on-failure" },
+  use: {
+    baseURL: "http://127.0.0.1:3100",
+    trace: "retain-on-failure",
+    actionTimeout: 20000,
+  },
   reporter: "list",
   webServer: {
     command: "npm run dev",

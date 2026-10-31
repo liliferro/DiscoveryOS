@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const loadingFactSchema = z.object({
-  topic: z.string().trim().min(2).max(100),
+  topic: z.string().trim().min(2).max(120),
   text: z.string().trim().min(10).max(400),
   source: z.string().trim().min(2).max(120),
   url: z

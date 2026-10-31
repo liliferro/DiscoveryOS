@@ -16,11 +16,16 @@ export default function AiConnectionPanel() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState("");
+  const dirty = !!data && (!!key || JSON.stringify(data) !== saved);
   useEffect(() => {
     let active = true;
     api<Connection>("admin/connection")
       .then((d) => {
-        if (active) setData(d);
+        if (active) {
+          setData(d);
+          setSaved(JSON.stringify(d));
+        }
       })
       .catch(() => {
         if (active) setError("No se pudo cargar la conexión.");
@@ -43,6 +48,7 @@ export default function AiConnectionPanel() {
         apiKey: key || undefined,
       });
       setData(next);
+      setSaved(JSON.stringify(next));
       setKey("");
       setMessage("Conexión guardada. Puedes comprobar el acceso al modelo.");
     } catch (e) {
@@ -57,7 +63,9 @@ export default function AiConnectionPanel() {
     setMessage("");
     try {
       await api("admin/connection-test", "POST", {});
-      setData(await api<Connection>("admin/connection"));
+      const next = await api<Connection>("admin/connection");
+      setData(next);
+      setSaved(JSON.stringify(next));
       setMessage(
         "Conexión comprobada: la clave tiene acceso al modelo. Inicia una discovery para probar la generación.",
       );
@@ -91,12 +99,14 @@ export default function AiConnectionPanel() {
       {data && (
         <>
           <span className="tag">
-            {data.enabled && data.configured
-              ? "IA real activada"
-              : data.configured
-                ? "Clave guardada · conexión desactivada"
-                : "Pendiente de clave"}
-            {data.verified ? " · acceso comprobado" : ""}
+            {dirty
+              ? "Cambios sin guardar"
+              : data.enabled && data.configured
+                ? "IA real activada"
+                : data.configured
+                  ? "Clave guardada · conexión desactivada"
+                  : "Pendiente de clave"}
+            {data.verified && !dirty ? " · acceso comprobado" : ""}
           </span>
           <label>
             Proveedor
@@ -168,7 +178,7 @@ export default function AiConnectionPanel() {
           <div className="editor-actions">
             <button
               className="button secondary"
-              disabled={busy || !data.configured}
+              disabled={busy || !data.configured || dirty}
               onClick={test}
             >
               Comprobar conexión guardada
@@ -178,9 +188,11 @@ export default function AiConnectionPanel() {
             </button>
           </div>
           <p className="muted small">
-            Configuración local: la clave se cifra en disco. Este entorno
-            conserva acceso administrativo de demostración; utiliza personas
-            ficticias para probarlo.
+            {dirty
+              ? "Guarda los cambios antes de comprobar la conexión."
+              : data.environmentManaged
+                ? "Las claves se administran desde las variables del proyecto en Vercel. Nunca se muestran al visitante."
+                : "Las claves guardadas se cifran en el servidor y no se muestran al visitante."}
           </p>
         </>
       )}

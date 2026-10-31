@@ -43,6 +43,25 @@ test("No cierra antes del mínimo ni inventa evidencia o servicios", () => {
     /EARLY_CLOSE/,
   );
   const invalid = decision(1);
+  const unsupportedDecline = decision(1);
+  unsupportedDecline.profile[0] = {
+    ...unsupportedDecline.profile[0],
+    status: "declined",
+    evidence: [],
+  };
+  assert.throws(
+    () => validateDecision(unsupportedDecline, config, 1, []),
+    /UNSUPPORTED_PROFILE/,
+  );
+  const duplicateOptions = decision(1);
+  duplicateOptions.nextQuestion!.options = [
+    "Conocer opciones",
+    "conocer opciones",
+  ];
+  assert.throws(
+    () => validateDecision(duplicateOptions, config, 1, []),
+    /INVALID_OPTIONS/,
+  );
   invalid.profile[0].evidence = [2];
   assert.throws(
     () => validateDecision(invalid, config, 1, []),
@@ -57,7 +76,7 @@ test("No cierra antes del mínimo ni inventa evidencia o servicios", () => {
             {
               service: "No existe",
               interest: "possible",
-              reason: "Demo",
+              reason: "Servicio demo",
               evidence: [1],
             },
           ],

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -13,6 +13,7 @@ import {
 import type { Answers, Config, Run } from "@/lib/domain";
 import { stages, visibleAnswers } from "@/lib/domain";
 import { api } from "@/lib/client";
+import { brandStyle } from "@/lib/brand";
 import ReportView from "./report";
 import AdaptiveSession from "./adaptive-session";
 type PublicSession = {
@@ -41,40 +42,68 @@ export default function Session({
   const [scenario, setScenario] = useState("normal");
   const [saved, setSaved] = useState("");
   const hydrated = useRef(false);
+  const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const persist = useCallback(
+    (payload: { answers: Answers; privacy: boolean; marketing: boolean }) => {
+      const request = saveQueue.current
+        .catch(() => {})
+        .then(() => api(`public/runs/${runId}/answers`, "PUT", payload));
+      saveQueue.current = request;
+      return request;
+    },
+    [runId],
+  );
   useEffect(() => {
+    let active = true;
     async function load() {
       try {
         if (runId) {
           const next = await api<Run>(`public/runs/${runId}`);
+          if (!active) return;
           setRun(next);
           setAnswers(next.answers);
           setPrivacy(next.privacy);
           setMarketing(next.marketing);
           hydrated.current = true;
-        } else if (slug)
-          setInfo(await api<PublicSession>(`public/sessions/${slug}`));
+        } else if (slug) {
+          const next = await api<PublicSession>(`public/sessions/${slug}`);
+          if (active) setInfo(next);
+        }
       } catch (e) {
-        setError((e as Error).message);
+        if (active) setError((e as Error).message);
       }
     }
     void load();
+    return () => {
+      active = false;
+    };
   }, [runId, slug]);
   useEffect(() => {
-    if (!runId || !run || run.state !== "processing") return;
+    if (!runId || run?.state !== "processing") return;
+    let active = true;
+    let pending = false;
     const timer = setInterval(async () => {
-      if (document.hidden) return;
+      if (document.hidden || pending) return;
+      pending = true;
       try {
-        setRun(await api<Run>(`public/runs/${runId}`));
+        const next = await api<Run>(`public/runs/${runId}`);
+        if (active) setRun(next);
       } catch (e) {
-        setError((e as Error).message);
+        if (active) setError((e as Error).message);
+      } finally {
+        pending = false;
       }
     }, 1200);
-    return () => clearInterval(timer);
-  }, [runId, run]);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [runId, run?.state]);
   // Save only hydrated drafts. Abort delayed saves after navigation or submission.
   useEffect(() => {
     if (
       !runId ||
+      busy ||
       run?.state !== "draft" ||
       run.config.mode === "adaptive" ||
       !hydrated.current
@@ -82,7 +111,7 @@ export default function Session({
       return;
     const timer = setTimeout(() => {
       setSaved("Guardando…");
-      void api(`public/runs/${runId}/answers`, "PUT", {
+      void persist({
         answers,
         privacy,
         marketing,
@@ -94,7 +123,16 @@ export default function Session({
         });
     }, 600);
     return () => clearTimeout(timer);
-  }, [answers, privacy, marketing, runId, run?.state, run?.config.mode]);
+  }, [
+    answers,
+    privacy,
+    marketing,
+    runId,
+    run?.state,
+    run?.config.mode,
+    busy,
+    persist,
+  ]);
   async function start() {
     setBusy(true);
     setError("");
@@ -117,7 +155,7 @@ export default function Session({
   const review = step >= questions.length;
   async function save() {
     if (runId)
-      await api(`public/runs/${runId}/answers`, "PUT", {
+      await persist({
         answers,
         privacy,
         marketing,
@@ -165,7 +203,7 @@ export default function Session({
       className="public-app"
       style={
         {
-          "--brand": run?.brand?.color || info?.color || "#6756d8",
+          ...brandStyle(run?.brand?.color || info?.color),
         } as React.CSSProperties
       }
     >

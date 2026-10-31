@@ -34,7 +34,7 @@ export function publicConfig(config: Run["config"], brand?: Run["brand"]) {
       }
     : { ...rest, mode: "fixed" as const };
 }
-export function publicRun(run: Run) {
+export function publicRun(run: Run, internal = false) {
   const safe = { ...run } as Partial<Run>;
   delete safe.tokenHash;
   safe.config = publicConfig(run.config, run.brand);
@@ -44,6 +44,24 @@ export function publicRun(run: Run) {
     void lease;
     void lastOperation;
     safe.conversation = conversation;
+    if (!internal) {
+      const publicDecision = (
+        decision: NonNullable<Run["conversation"]>["decision"],
+      ) => (decision ? { ...decision, profile: [], summary: "" } : undefined);
+      safe.conversation = {
+        ...conversation,
+        usage: [],
+        calls: 0,
+        error: conversation.error
+          ? "No pudimos preparar la respuesta. Puedes reintentar o contactar al equipo."
+          : undefined,
+        decision: publicDecision(conversation.decision),
+        turns: conversation.turns.map((turn) => ({
+          ...turn,
+          decision: publicDecision(turn.decision),
+        })),
+      };
+    }
   }
   return safe;
 }
@@ -83,7 +101,7 @@ export async function advanceConversation(
     if (!connection.enabled || !connectionView(connection).configured)
       throw new DiscoveryError(
         503,
-        "La empresa debe conectar y activar OpenAI desde Integraciones para iniciar esta conversación.",
+        "La empresa debe conectar y activar su proveedor de IA para iniciar esta conversación.",
       );
     let c = run.conversation;
     if (c?.lastOperation?.id === body.operationId) {

@@ -1,7 +1,7 @@
 "use client";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import BrandLogo from "./brand-logo";
 import { useRouter } from "next/navigation";
 import {
   AudioLines,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { Run, Config } from "@/lib/domain";
 import { api } from "@/lib/client";
+import { brandStyle } from "@/lib/brand";
 import LeadSummary from "./lead-summary";
 import DiscoveryProcessing from "./discovery-processing";
 import {
@@ -54,6 +55,10 @@ export default function AdaptiveSession({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const c = run?.conversation;
+  const questionHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!busy) questionHeading.current?.focus({ preventScroll: true });
+  }, [busy, index, c?.revision]);
   const turn = c?.turns[index];
   const name = run?.brand?.name || info?.name;
   const color = run?.brand?.color || info?.color;
@@ -75,6 +80,12 @@ export default function AdaptiveSession({
       if (Array.isArray(stored))
         for (const id of stored)
           if (typeof id === "string") seenFacts.current.add(id);
+      if (
+        !lastFact.current &&
+        Array.isArray(stored) &&
+        typeof stored.at(-1) === "string"
+      )
+        lastFact.current = stored.at(-1);
     } catch {
       /* La rotación sigue funcionando en memoria si el almacenamiento está bloqueado. */
     }
@@ -171,7 +182,7 @@ export default function AdaptiveSession({
   return (
     <div
       className="public-app adaptive-app"
-      style={{ "--brand": color || "#6756d8" } as React.CSSProperties}
+      style={brandStyle(color) as React.CSSProperties}
     >
       <header className="public-header">
         <Link href="/" className="wordmark">
@@ -182,13 +193,12 @@ export default function AdaptiveSession({
         </Link>
         <span className="public-brand">
           {(run?.brand.logoUrl || info?.logoUrl) && (
-            <Image
+            <BrandLogo
               className="public-client-logo"
               src={(run?.brand.logoUrl || info?.logoUrl)!}
               alt={`Logo de ${name}`}
               width={110}
               height={42}
-              unoptimized
             />
           )}
           {name}
@@ -214,7 +224,13 @@ export default function AdaptiveSession({
         ) : c?.closed && run ? (
           <LeadSummary run={run} />
         ) : !c?.turns.length ? (
-          <section className="welcome">
+          <form
+            className={run ? "welcome contact-welcome" : "welcome"}
+            onSubmit={(event) => {
+              event.preventDefault();
+              void start();
+            }}
+          >
             <span className="eyebrow">
               {name?.toUpperCase()} / UNA CONVERSACIÓN A TU MEDIDA
             </span>
@@ -244,6 +260,7 @@ export default function AdaptiveSession({
                       <input
                         autoComplete="name"
                         required
+                        minLength={2}
                         maxLength={100}
                         value={contactName}
                         onChange={(e) => setContactName(e.target.value)}
@@ -257,6 +274,8 @@ export default function AdaptiveSession({
                         inputMode="tel"
                         required
                         maxLength={40}
+                        pattern="\+[0-9\s\(\)\-]{8,39}"
+                        title="Incluye + y el código de país, por ejemplo +52 55 1234 5678."
                         placeholder="+52 55 1234 5678"
                         value={contactWhatsapp}
                         onChange={(e) => setContactWhatsapp(e.target.value)}
@@ -317,7 +336,7 @@ export default function AdaptiveSession({
                     !contactEmail.trim() ||
                     !contactConsent))
               }
-              onClick={start}
+              type="submit"
             >
               {busy ? (
                 <>
@@ -336,7 +355,7 @@ export default function AdaptiveSession({
               contestar. La conversación no sustituye una valoración
               profesional.
             </p>
-          </section>
+          </form>
         ) : (
           <section className="adaptive-question">
             <div className="question-progress">
@@ -349,7 +368,9 @@ export default function AdaptiveSession({
                 <p>{insight}</p>
               </div>
             )}
-            <h1>{turn?.question.text}</h1>
+            <h1 ref={questionHeading} tabIndex={-1}>
+              {turn?.question.text}
+            </h1>
             <p className="question-why">{turn?.question.why}</p>
             <div className="choice-list">
               {turn?.question.options.map((option) => (

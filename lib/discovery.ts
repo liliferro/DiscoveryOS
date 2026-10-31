@@ -70,7 +70,7 @@ export const decisionSchema = z.object({
       z.object({
         service: z.string(),
         interest: z.enum(["explicit", "possible", "not_interested"]),
-        reason: z.string().max(600),
+        reason: z.string().trim().min(5).max(600),
         evidence: z.array(z.number().int().min(1)).min(1),
       }),
     )
@@ -178,6 +178,17 @@ export function validateDecision(
     )
   )
     throw Error("AI_UNSUPPORTED_PROFILE");
+  if (d.profile.some((p) => p.status === "declined" && !p.evidence.length))
+    throw Error("AI_UNSUPPORTED_PROFILE");
+  if (
+    d.nextQuestion &&
+    new Set(
+      d.nextQuestion.options.map((option) =>
+        option.trim().toLocaleLowerCase("es"),
+      ),
+    ).size !== d.nextQuestion.options.length
+  )
+    throw Error("AI_INVALID_OPTIONS");
   if (
     d.segments.some(
       (s) => !config.services.some((x) => x.name === s.service),

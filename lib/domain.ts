@@ -179,7 +179,9 @@ export function validateAnswers(
       continue;
     const v = answers[q.id];
     const empty =
-      v === undefined || v === "" || (Array.isArray(v) && !v.length);
+      v === undefined ||
+      (typeof v === "string" && !v.trim()) ||
+      (Array.isArray(v) && !v.length);
     if (empty) {
       if (final && q.required) throw Error(`Responde: ${q.label}`);
       continue;

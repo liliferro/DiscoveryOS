@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import AxeBuilder from "@axe-core/playwright";
 test("Discovery adaptativa: contexto privado, consentimiento, edición, segmentación e idempotencia", async ({
   request,
   page,
@@ -164,7 +165,14 @@ test("Discovery adaptativa: contexto privado, consentimiento, edición, segmenta
     await request.get(`/api/v1/public/runs/${id}`)
   ).json();
   expect(persisted.patientResult).toEqual(run.patientResult);
+  expect(persisted.conversation.decision.profile).toEqual([]);
+  expect(persisted.conversation.decision.summary).toBe("");
+  expect(persisted.conversation.usage).toEqual([]);
   const review = await (await request.get("/api/v1/admin/dashboard")).json();
+  expect(
+    review.runs.find((r: { id: string }) => r.id === id).conversation.decision
+      .profile.length,
+  ).toBeGreaterThan(0);
   expect(
     review.runs.find((r: { id: string }) => r.id === id).patientResult.status,
   ).toBe("ready_for_review");
@@ -179,6 +187,15 @@ test("Discovery adaptativa: contexto privado, consentimiento, edición, segmenta
   await expect(
     page.getByRole("button", { name: "Imprimir resumen" }),
   ).toHaveCount(0);
+  const resultAccessibility = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(
+    resultAccessibility.violations.map((v) => ({
+      rule: v.id,
+      nodes: v.nodes.map((n) => n.target),
+    })),
+  ).toEqual([]);
   await expect(
     page.getByRole("heading", { name: "Perfil y trazabilidad" }),
   ).toHaveCount(0);
@@ -212,6 +229,7 @@ test("Experiencia móvil adaptativa y configuración del objetivo en el panel", 
     },
   });
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.clock.install();
   let releaseProcessing!: () => void;
   const processingGate = new Promise<void>((resolve) => {

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -21,7 +21,7 @@ import {
   Building2,
 } from "lucide-react";
 import type { Config, Run, Tenant, Question } from "@/lib/domain";
-import { api } from "@/lib/client";
+import { api, ApiRequestError } from "@/lib/client";
 import ReportView from "./report";
 import DiscoveryEditor from "./discovery-editor";
 import AiConnectionPanel from "./ai-connection";
@@ -55,14 +55,52 @@ export default function Dashboard({
   const [selected, setSelected] = useState<Run>();
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const loginDialog = useRef<HTMLDialogElement>(null);
+  const dirty =
+    !!config &&
+    !!data &&
+    JSON.stringify(config) !== JSON.stringify(data.tenant.draft);
+  useEffect(() => {
+    const dialog = loginDialog.current;
+    if (login && dialog && !dialog.open) dialog.showModal();
+    return () => {
+      if (dialog?.open) dialog.close();
+    };
+  }, [login]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  function changeTab(next: string) {
+    if (dirty && tab === "Constructor" && next !== tab) {
+      if (
+        !window.confirm(
+          "Tienes cambios sin guardar. ¿Quieres descartarlos y salir del constructor?",
+        )
+      )
+        return;
+      setConfig(data?.tenant.draft);
+    }
+    setTab(next);
+    setSelected(undefined);
+    setMessage("");
+  }
   async function refresh() {
     try {
       const next = await api<Data>("admin/dashboard");
       setData(next);
       setConfig(next.tenant.draft);
       setLogin(false);
-    } catch {
-      setLogin(true);
+      return true;
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401)
+        setLogin(true);
+      else setError((error as Error).message);
+      return false;
     }
   }
   useEffect(() => {
@@ -107,7 +145,7 @@ export default function Dashboard({
     setMessage("");
     try {
       await fn();
-      await refresh();
+      if (!(await refresh())) return;
       setMessage(text);
     } catch (e) {
       setError((e as Error).message);
@@ -140,7 +178,18 @@ export default function Dashboard({
           discovery<span className="os">OS</span>
         </Link>
         <div className="workspace-label">ESPACIO DE TRABAJO</div>
-        <button className="workspace" onClick={() => setLogin(true)}>
+        <button
+          className="workspace"
+          onClick={() => {
+            if (
+              !dirty ||
+              window.confirm(
+                "Tienes cambios sin guardar. ¿Quieres salir del constructor?",
+              )
+            )
+              setLogin(true);
+          }}
+        >
           <span className="avatar">{tenant?.name.slice(0, 1) || "M"}</span>
           <span>
             <strong>{tenant?.name || "Mood Agency"}</strong>
@@ -153,8 +202,7 @@ export default function Dashboard({
             <button
               className={tab === "Agencia" ? "nav-item active" : "nav-item"}
               onClick={() => {
-                setTab("Agencia");
-                setSelected(undefined);
+                changeTab("Agencia");
               }}
             >
               <Building2 size={18} />
@@ -163,12 +211,13 @@ export default function Dashboard({
           )}
           {tabs.map((t) => (
             <button
+              aria-label={t.name}
+              title={t.name}
+              aria-current={tab === t.name ? "page" : undefined}
               className={tab === t.name ? "nav-item active" : "nav-item"}
               key={t.name}
               onClick={() => {
-                setTab(t.name);
-                setSelected(undefined);
-                setMessage("");
+                changeTab(t.name);
               }}
             >
               <t.icon size={18} />
@@ -195,8 +244,7 @@ export default function Dashboard({
           <button
             className="nav-item"
             onClick={() => {
-              setTab("Integraciones");
-              setSelected(undefined);
+              changeTab("Integraciones");
             }}
           >
             <CircleHelp size={18} />
@@ -234,7 +282,15 @@ export default function Dashboard({
             <button
               className="profile-avatar small-avatar"
               aria-label="Cambiar empresa"
-              onClick={() => setLogin(true)}
+              onClick={() => {
+                if (
+                  !dirty ||
+                  window.confirm(
+                    "Tienes cambios sin guardar. ¿Quieres salir del constructor?",
+                  )
+                )
+                  setLogin(true);
+              }}
             >
               LF
             </button>
@@ -695,8 +751,13 @@ export default function Dashboard({
                         Editar el borrador no cambia las sesiones iniciadas.
                       </p>
                     </div>
-                    <span className="tag">
-                      {tenant?.versions.length} versiones conservadas
+                    <span
+                      className={dirty ? "tag draft-unsaved" : "tag"}
+                      role="status"
+                    >
+                      {dirty
+                        ? "Cambios sin guardar"
+                        : `${tenant?.versions.length} versiones conservadas`}
                     </span>
                   </div>
                   <label>
@@ -1052,7 +1113,15 @@ export default function Dashboard({
         </main>
       </div>
       {login && (
-        <div className="modal-backdrop">
+        <dialog
+          ref={loginDialog}
+          className="login-dialog"
+          aria-labelledby="login-title"
+          onCancel={(event) => {
+            event.preventDefault();
+            if (data && !busy) setLogin(false);
+          }}
+        >
           <form
             className="login-card"
             onSubmit={(e) => {
@@ -1074,7 +1143,7 @@ export default function Dashboard({
               <AudioLines size={25} />
             </span>
             <div className="eyebrow">BIENVENIDA A DISCOVERY OS</div>
-            <h2>
+            <h2 id="login-title">
               Tu próxima oportunidad
               <br />
               empieza aquí.
@@ -1099,6 +1168,12 @@ export default function Dashboard({
               {cloud ? "Contraseña" : "Contraseña de demostración"}
               <input
                 type="password"
+                autoComplete={
+                  creatingAccess ? "new-password" : "current-password"
+                }
+                required
+                minLength={creatingAccess ? 12 : 1}
+                maxLength={250}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -1153,7 +1228,7 @@ export default function Dashboard({
               </button>
             )}
           </form>
-        </div>
+        </dialog>
       )}
     </div>
   );

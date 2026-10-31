@@ -6,3 +6,4 @@ export default async function Page({
 }) {
   return <Session runId={(await params).id} />;
 }
+export const metadata = { robots: { index: false, follow: false } };
