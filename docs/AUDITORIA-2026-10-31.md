@@ -22,7 +22,7 @@ Fecha: revisión iniciada el 30 y terminada el 31 de octubre de 2026. Alcance: a
 | Validación | Un texto compuesto solo por espacios cumplía la condición de respuesta obligatoria. | Rechazo de respuestas obligatorias vacías tras eliminar espacios. |
 | Facts | El límite del tema era menor que el de los nombres de servicios. | Límites compatibles; conservación del último fact para evitar repetición inmediata al recargar. |
 | Facts | Editar un banco extenso generaba una pantalla excesivamente larga. | Editor plegable por dato, con tema y vista previa. |
-| Accesibilidad | Contraste insuficiente en numerosos textos secundarios, etiquetas y avisos. | Ajuste de colores de texto y contraste calculado para marcas con colores claros. |
+| Accesibilidad | Contraste insuficiente en numerosos textos secundarios, etiquetas y avisos. | Ajuste de colores de texto y contraste calculado para marcas con colores claros, incluidos los estados de hover y los indicadores de avance. |
 | Accesibilidad | El acceso no utilizaba un diálogo con gestión nativa del foco. | Diálogo modal nativo; el teclado queda dentro de la ventana y el fondo permanece inactivo. |
 | Accesibilidad | El contador alteraba el nombre accesible de la navegación; faltaba foco tras cambiar de pregunta. | Nombres accesibles estables, indicación de página activa y foco en la pregunta nueva. |
 | Imágenes | Un logo externo no disponible mostraba una imagen rota. | Sustitución por icono de marca o conservación del nombre sin imagen rota. |

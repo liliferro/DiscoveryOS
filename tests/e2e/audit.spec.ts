@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { contrastRatio } from "../../lib/brand";
 
 test("Auditoría UX: accesibilidad, teclado, red y pantallas pequeñas", async ({
   page,
@@ -107,6 +108,55 @@ test("Auditoría UX: accesibilidad, teclado, red y pantallas pequeñas", async (
     path: "docs/screenshots/audit-patient-mobile.png",
     fullPage: true,
   });
+  const dashboard = await (
+    await page.request.get("/api/v1/admin/dashboard")
+  ).json();
+  const original = dashboard.tenant;
+  try {
+    await page.request.put("/api/v1/admin/brand", {
+      data: {
+        name: original.name,
+        color: "#f4b4d1",
+        cta: original.cta,
+        services: original.services,
+      },
+    });
+    await page.goto(`/s/${original.slug}`);
+    const button = page.getByRole("button", {
+      name: "Descubrir mi siguiente paso",
+    });
+    await expect(button).toBeVisible();
+    await button.hover();
+    await button.evaluate(async (element) => {
+      await Promise.all(
+        element.getAnimations().map((animation) => animation.finished),
+      );
+    });
+    const colors = await button.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { foreground: style.color, background: style.backgroundColor };
+    });
+    const hex = (value: string) =>
+      "#" +
+      value
+        .match(/\d+/g)!
+        .slice(0, 3)
+        .map((number) => Number(number).toString(16).padStart(2, "0"))
+        .join("");
+    expect(
+      contrastRatio(hex(colors.foreground), hex(colors.background)),
+    ).toBeGreaterThanOrEqual(4.5);
+    await audit("Marca clara con botón en hover");
+  } finally {
+    await page.request.put("/api/v1/admin/brand", {
+      data: {
+        name: original.name,
+        color: original.color,
+        cta: original.cta,
+        services: original.services,
+      },
+    });
+  }
   expect(findings, JSON.stringify(findings, null, 2)).toEqual([]);
   expect(scriptErrors).toEqual([]);
 });

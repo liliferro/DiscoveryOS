@@ -1953,6 +1953,9 @@ td:first-child {
 .public-app .logo {
   color: var(--brand-contrast);
 }
+.public-app .button.primary:hover {
+  background: var(--brand);
+}
 .fact-editor summary {
   cursor: pointer;
   line-height: 1.6;
@@ -2373,7 +2376,7 @@ summary:focus-visible {
 }
 .stage.current > span {
   background: var(--brand);
-  color: white;
+  color: var(--brand-contrast);
   border-color: var(--brand-ink, var(--brand));
 }
 .stage.current > svg {
