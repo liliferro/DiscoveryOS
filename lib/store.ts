@@ -2,6 +2,7 @@ import { seed, dentalTenant } from "./seed.ts";
 import type { Run, Tenant } from "./domain.ts";
 import type { AiConnection } from "./ai-settings.ts";
 import { isCloud, supabaseServer, cloudNamespace } from "./cloud.ts";
+import { dentalBookingUrl, preparePatientResult } from "./patient-result.ts";
 export type State = {
   tenants: Tenant[];
   runs: Run[];
@@ -20,6 +21,16 @@ export function initialState(): State {
 function migrate(state: State) {
   if (!state.tenants.some((t) => t.id === "dental"))
     state.tenants.push(dentalTenant());
+  const dental = state.tenants.find((t) => t.id === "dental");
+  if (dental) {
+    dental.draft.bookingUrl ??= dentalBookingUrl;
+    for (const version of dental.versions)
+      version.config.bookingUrl ??= dentalBookingUrl;
+  }
+  for (const run of state.runs) {
+    if (run.tenantId === "dental") run.config.bookingUrl ??= dentalBookingUrl;
+    preparePatientResult(run);
+  }
 }
 export async function transaction<T>(fn: (state: State) => T): Promise<T> {
   if (!isCloud()) {

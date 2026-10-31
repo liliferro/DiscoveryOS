@@ -183,6 +183,62 @@
 .lead-summary .timeline {
   grid-template-columns: 1fr;
 }
+.patient-complete {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--brand);
+  font-size: 13px;
+}
+.patient-result h1 {
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 1.15;
+  letter-spacing: -1.5px;
+}
+.patient-result > .lead-text {
+  max-width: 720px;
+  margin-bottom: 32px;
+}
+.patient-options h2 {
+  font-size: 24px;
+  margin: 18px 0 12px;
+}
+.patient-options small {
+  color: #756780;
+  line-height: 1.7;
+  display: block;
+}
+.patient-booking {
+  margin-top: 28px;
+  padding: 32px;
+  background: #f5f2ff;
+  border: 1px solid #e1d9f6;
+}
+.patient-booking > svg {
+  color: var(--brand);
+}
+.patient-booking h2 {
+  margin: 18px 0 12px;
+  font-size: 26px;
+}
+.patient-booking p {
+  max-width: 660px;
+  line-height: 1.8;
+  color: #756780;
+}
+.patient-booking .button {
+  margin-top: 20px;
+}
+.patient-booking small {
+  display: block;
+  margin-top: 14px;
+  color: #756780;
+  line-height: 1.6;
+}
+.patient-footnote {
+  line-height: 1.7;
+  margin: 22px 0 12px;
+}
 .adaptive-question > .notice {
   margin-top: 22px;
 }

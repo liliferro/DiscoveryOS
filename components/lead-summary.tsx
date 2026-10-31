@@ -1,5 +1,6 @@
 "use client";
 import type { Run } from "@/lib/domain";
+import { ArrowRight, Check, CalendarDays } from "lucide-react";
 export default function LeadSummary({
   run,
   internal = false,
@@ -10,6 +11,95 @@ export default function LeadSummary({
   const c = run.conversation;
   const d = c?.decision;
   if (!c || !d) return null;
+  if (!internal) {
+    const options =
+      run.patientResult?.options ||
+      d.segments.filter((s) => s.interest !== "not_interested");
+    const bookingUrl = run.patientResult?.bookingUrl ?? run.config.bookingUrl;
+    return (
+      <section className="lead-summary patient-result">
+        <span className="patient-complete">
+          <Check size={22} /> Conversación completada
+        </span>
+        <h1>
+          Gracias por contarnos
+          <br />
+          lo que buscas.
+        </h1>
+        <p className="lead-text">
+          {d.handoff
+            ? "Gracias por compartir tu situación. El siguiente paso es hablar con un profesional que pueda atenderte personalmente."
+            : options.length > 1
+              ? "Por lo que nos compartiste, hay varias opciones que vale la pena explorar contigo en una valoración. Te contamos por qué."
+              : options.length === 1
+                ? "Tus respuestas nos ayudan a entender qué quieres mejorar. Esta es una opción que puedes explorar con el equipo en tu valoración."
+                : "Tus respuestas nos ayudan a preparar una conversación más útil contigo. Una valoración con el equipo permitirá aclarar tus opciones y resolver tus dudas."}
+        </p>
+        {!d.handoff && options.length > 0 && (
+          <div className="segment-grid patient-options">
+            {options.map((option) => (
+              <article className="card" key={option.service}>
+                <span className="eyebrow">UNA OPCIÓN PARA VALORAR CONTIGO</span>
+                <h2>{option.service}</h2>
+                <p>{option.reason}</p>
+                <small>
+                  En tu cita podremos revisar si esta opción es adecuada para ti
+                  y qué alternativas existen.
+                </small>
+              </article>
+            ))}
+          </div>
+        )}
+        {d.handoff ? (
+          <div className="notice">
+            {d.nextSteps.map((step, i) => (
+              <p key={i}>{step}</p>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="patient-booking card">
+              <CalendarDays size={28} aria-hidden="true" />
+              <h2>El siguiente paso es conocernos.</h2>
+              <p>
+                Agenda tu valoración con {run.brand.name}. El equipo podrá
+                escucharte, revisar tu caso y explicarte las opciones antes de
+                que tomes una decisión.
+              </p>
+              {bookingUrl ? (
+                <a
+                  className="button primary"
+                  href={bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Agendar mi valoración <ArrowRight size={18} />
+                </a>
+              ) : (
+                <p className="notice">
+                  El equipo aún no ha publicado su enlace de agenda.
+                </p>
+              )}
+              {bookingUrl && new URL(bookingUrl).hostname === "wa.me" && (
+                <small>
+                  Te llevaremos a WhatsApp para solicitar tu cita. Tú decides
+                  cuándo enviar el mensaje.
+                </small>
+              )}
+            </div>
+            <p className="small muted patient-footnote">
+              Esta orientación se basa en lo que nos contaste. La valoración
+              odontológica confirmará qué tratamientos son adecuados para ti.
+            </p>
+          </>
+        )}
+        <p className="small muted">
+          Tus respuestas y el resultado quedaron guardados para que el equipo
+          pueda revisarlos. La cita se confirma directamente con la clínica.
+        </p>
+      </section>
+    );
+  }
   return (
     <div className="lead-summary">
       <span className="tag">
@@ -18,6 +108,9 @@ export default function LeadSummary({
           : `Conversación con IA · ${c.provider === "anthropic" ? "Claude" : "OpenAI"}`}
       </span>
       <h1>Esto es lo que nos contaste.</h1>
+      <span className="tag">
+        Resultado guardado · pendiente de revisión del equipo
+      </span>
       <p className="lead-text">{d.summary}</p>
       <div className="notice">
         Esta conversación orienta el interés del visitante. No constituye
@@ -95,13 +188,6 @@ export default function LeadSummary({
           ))}
         </>
       )}
-      <p className="small muted">
-        La conversación queda guardada en la plataforma. No se envían
-        solicitudes de contacto desde esta versión.
-      </p>
-      <button className="button secondary" onClick={() => window.print()}>
-        Imprimir resumen
-      </button>
     </div>
   );
 }

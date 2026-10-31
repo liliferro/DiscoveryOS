@@ -8,6 +8,7 @@ import {
 } from "./ai-settings.ts";
 import { DiscoveryError, generateDecision } from "./ai-provider.ts";
 import type { Run } from "./domain.ts";
+import { preparePatientResult } from "./patient-result.ts";
 const hash = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 const bodySchema = z.object({
@@ -24,6 +25,7 @@ export function publicConfig(config: Run["config"]) {
         title: config.title,
         description: config.description,
         questions: [],
+        bookingUrl: config.bookingUrl,
         mode: "adaptive" as const,
       }
     : { ...rest, mode: "fixed" as const };
@@ -187,6 +189,7 @@ export async function advanceConversation(
         c.closed = true;
         live.state = "completed_limited";
         live.submittedAt = new Date().toISOString();
+        preparePatientResult(live);
       }
       c.revision++;
       c.lastOperation = { id: body.operationId, hash: bodyHash };

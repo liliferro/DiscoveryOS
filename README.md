@@ -42,6 +42,8 @@ Las llamadas a IA se hacen fuera de las escrituras de datos. Cada turno usa revi
 
 Los cuestionarios predefinidos conservan su investigación e informe simulados. En nube esas etapas breves se procesan durante peticiones autorizadas y pueden reanudarse desde checkpoints; no dependen de un proceso permanente de Node. Una cola distribuida con proveedores reales de investigación sigue pendiente.
 
+Al cerrar una conversación se guarda `patientResult` junto con las respuestas, el perfil y las evidencias, en la misma transacción de Supabase. El paciente ve un agradecimiento, las opciones relacionadas con sus intereses y un enlace para solicitar una valoración. El equipo conserva el resumen y la conversación en el panel, con estado pendiente de revisión; no se envían informes automáticamente. Las conversaciones ya completadas reciben este resultado al volver a consultarse. El enlace HTTPS se configura por empresa en el Constructor y se publica con la versión; WhatsApp abre un mensaje preparado que el visitante decide enviar.
+
 ## Desarrollo local
 
 ```powershell

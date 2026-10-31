@@ -30,6 +30,21 @@ export default function DiscoveryEditor({
       {d.enabled && (
         <>
           <label>
+            Enlace para agendar una valoración
+            <input
+              type="url"
+              value={config.bookingUrl || ""}
+              onChange={(e) =>
+                onChange({ ...config, bookingUrl: e.target.value })
+              }
+              placeholder="https://wa.me/525523153249"
+            />
+            <small>
+              WhatsApp o agenda de la empresa. Se muestra al terminar; no envía
+              mensajes automáticamente.
+            </small>
+          </label>
+          <label>
             Objetivo del discovery
             <textarea
               value={d.objective}

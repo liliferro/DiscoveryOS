@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 test("Discovery adaptativa: contexto privado, consentimiento, edición, segmentación e idempotencia", async ({
   request,
+  page,
 }) => {
   const publicSession = await (
     await request.get("/api/v1/public/sessions/sonrisa")
@@ -108,6 +109,33 @@ test("Discovery adaptativa: contexto privado, consentimiento, edición, segmenta
   expect(run.conversation.turns).toHaveLength(4);
   expect(run.state).toBe("completed_limited");
   expect(run.conversation.provider).toBe("fixture");
+  expect(run.patientResult.status).toBe("ready_for_review");
+  expect(
+    run.patientResult.options.map((s: { service: string }) => s.service),
+  ).toEqual(["Carillas"]);
+  expect(new URL(run.patientResult.bookingUrl).pathname).toBe("/525523153249");
+  const persisted = await (
+    await request.get(`/api/v1/public/runs/${id}`)
+  ).json();
+  expect(persisted.patientResult).toEqual(run.patientResult);
+  const review = await (await request.get("/api/v1/admin/dashboard")).json();
+  expect(
+    review.runs.find((r: { id: string }) => r.id === id).patientResult.status,
+  ).toBe("ready_for_review");
+  await page.context().addCookies((await request.storageState()).cookies);
+  await page.goto(`/r/${id}`);
+  await expect(
+    page.getByRole("heading", { name: /Gracias por contarnos/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Agendar mi valoración/ }),
+  ).toHaveAttribute("href", run.patientResult.bookingUrl);
+  await expect(
+    page.getByRole("button", { name: "Imprimir resumen" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Perfil y trazabilidad" }),
+  ).toHaveCount(0);
   await request.post("/api/v1/login", {
     data: { tenantId: "mood", password: "discovery-demo" },
   });

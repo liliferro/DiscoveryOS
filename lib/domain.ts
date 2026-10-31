@@ -19,6 +19,19 @@ export const questionSchema = z.object({
 export const configSchema = z.object({
   title: z.string().min(3).max(120),
   description: z.string().max(500),
+  bookingUrl: z
+    .string()
+    .max(2000)
+    .refine((value) => {
+      if (!value) return true;
+      try {
+        const url = new URL(value);
+        return url.protocol === "https:" && !url.username && !url.password;
+      } catch {
+        return false;
+      }
+    }, "Usa un enlace HTTPS válido para agendar")
+    .optional(),
   questions: z.array(questionSchema).min(1).max(30),
   discovery: discoverySchema.optional(),
   mode: z.enum(["fixed", "adaptive"]).optional(),
@@ -76,6 +89,12 @@ export type Run = {
   marketing: boolean;
   submittedAt?: string;
   conversation?: Conversation;
+  patientResult?: {
+    createdAt: string;
+    status: "ready_for_review";
+    options: { service: string; reason: string }[];
+    bookingUrl: string;
+  };
   report?: Report;
   job?: {
     stage: number;
