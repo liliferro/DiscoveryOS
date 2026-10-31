@@ -1,0 +1,16 @@
+node_modules/
+.next/
+.env*
+!.env.example
+.data/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.vercel/
+.cloud-secrets/
+Discovery_OS_*
+*.zip
+*.docx
+docs/DISCOVERY_OS_MASTER.md
+supabase/.temp/
+docs/screenshots/
