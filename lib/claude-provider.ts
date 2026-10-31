@@ -73,7 +73,7 @@ export async function requestClaude(
     if (e instanceof Anthropic.APIError) {
       console.warn("Claude request rejected", {
         status: e.status,
-        requestId: e.request_id,
+        requestId: e.requestID,
         message: e.message.slice(0, 1500),
       });
       const lowCredit = /credit balance|insufficient.*credit/i.test(e.message);
