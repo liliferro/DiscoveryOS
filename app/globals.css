@@ -1841,6 +1841,42 @@ td:first-child {
   z-index: 100;
   padding: 20px;
 }
+.landing-delete-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 28px;
+  margin: auto;
+  border: 1px solid #e6e0ed;
+  border-radius: 18px;
+  color: #21192d;
+  background: white;
+  box-shadow: 0 30px 100px #281e3930;
+}
+.landing-delete-dialog::backdrop {
+  background: #21192d70;
+  backdrop-filter: blur(5px);
+}
+.landing-delete-dialog p {
+  line-height: 1.6;
+  margin: 16px 0;
+  overflow-wrap: anywhere;
+}
+.landing-delete-dialog label strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.landing-delete-confirm {
+  background: #b42335;
+  color: white;
+}
+.agency-deleted-landings {
+  margin-top: 24px;
+}
+.agency-deleted-landings summary {
+  cursor: pointer;
+  font-weight: 600;
+}
 .login-card {
   background: white;
   padding: 38px;

@@ -15,6 +15,13 @@ test("Agencia: permisos, cliente con dos objetivos, publicación y sesiones inde
   expect(
     (await request.post("/api/v1/agency/clients", { data: {} })).status(),
   ).toBe(403);
+  expect(
+    (
+      await request.post("/api/v1/agency/landings/mood/delete", {
+        data: { confirmation: "Discovery de crecimiento" },
+      })
+    ).status(),
+  ).toBe(403);
   await request.post("/api/v1/login", {
     data: { tenantId: "mood", password: "discovery-demo" },
   });
@@ -232,6 +239,70 @@ test("Agencia: permisos, cliente con dos objetivos, publicación y sesiones inde
   expect(
     agency.clients.find((c: { id: string }) => c.id === client.id).landings,
   ).toHaveLength(2);
+  const deletionUrl = `/api/v1/agency/landings/${first.id}/delete`;
+  expect(
+    (
+      await request.post(deletionUrl, {
+        data: { confirmation: "nombre incorrecto" },
+      })
+    ).status(),
+  ).toBe(422);
+  expect(
+    (await request.get(`/api/v1/public/sessions/${slug}-a`)).status(),
+  ).toBe(200);
+  expect(
+    (
+      await request.post(deletionUrl, {
+        data: { confirmation: "Objetivo asesoría" },
+      })
+    ).status(),
+  ).toBe(200);
+  expect(
+    (await request.get(`/api/v1/public/sessions/${slug}-a`)).status(),
+  ).toBe(404);
+  expect(
+    (
+      await request.post("/api/v1/public/runs", { data: { slug: slug + "-a" } })
+    ).status(),
+  ).toBe(404);
+  expect((await request.get(`/api/v1/public/runs/${runId}`)).status()).toBe(
+    404,
+  );
+  expect(
+    (
+      await request.post(`/api/v1/public/runs/${runId}/conversation`, {
+        data: { operationId: randomUUID(), revision: 0, privacy: true },
+      })
+    ).status(),
+  ).toBe(404);
+  expect(
+    (
+      await request.post(`/api/v1/agency/landings/${first.id}/publish`, {
+        data: {},
+      })
+    ).status(),
+  ).toBe(404);
+  const preserved = await request.get(
+    `/api/v1/agency/export?landingId=${first.id}`,
+  );
+  expect(preserved.status()).toBe(200);
+  expect(await preserved.text()).toContain(runId);
+  expect(
+    (
+      await request.post(`/api/v1/agency/landings/${first.id}/restore`, {
+        data: {},
+      })
+    ).status(),
+  ).toBe(200);
+  expect(
+    (await request.get(`/api/v1/public/sessions/${slug}-a`)).status(),
+  ).toBe(404);
+  await request.post(`/api/v1/agency/landings/${first.id}/publish`, {
+    data: {},
+  });
+  expect(
+    (await request.get(`/api/v1/public/sessions/${slug}-a`)).status(),
+  ).toBe(200);
 });
 
 test("Panel de agencia: crear cliente, crear landing, editar objetivo y publicar", async ({
@@ -314,6 +385,51 @@ test("Panel de agencia: crear cliente, crear landing, editar objetivo y publicar
     path: "docs/screenshots/agency-mobile.png",
     fullPage: true,
   });
+  await page
+    .getByRole("button", {
+      name: "Eliminar landing Captación para asesoría",
+      exact: true,
+    })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "¿Eliminar esta landing?" });
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Confirmar eliminación" }),
+  ).toBeDisabled();
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByText("Publicada", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", {
+      name: "Eliminar landing Captación para asesoría",
+      exact: true,
+    })
+    .click();
+  await dialog
+    .getByLabel("Escribe el nombre para confirmar")
+    .fill("equivocado");
+  await expect(
+    dialog.getByRole("button", { name: "Confirmar eliminación" }),
+  ).toBeDisabled();
+  await dialog
+    .getByLabel("Escribe el nombre para confirmar")
+    .fill("Captación para asesoría");
+  await page.screenshot({
+    path: "docs/screenshots/landing-delete-confirmation.png",
+    fullPage: true,
+  });
+  await dialog.getByRole("button", { name: "Confirmar eliminación" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole("link", { name: "Abrir landing" })).toHaveCount(
+    0,
+  );
+  await page.getByText("Landings eliminadas (1)", { exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Restaurar como borrador" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Restaurar como borrador" }).click();
+  await expect(page.getByText("Borrador", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Publicar", exact: true }).click();
   await page
     .getByRole("button", { name: "Ver prospectos", exact: true })
     .click();

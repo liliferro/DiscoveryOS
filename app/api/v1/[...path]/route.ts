@@ -211,6 +211,11 @@ async function handler(
         );
         if (!session) throw new ApiError(401, "Inicia sesión para continuar");
         const tenant = state.tenants.find((t) => t.id === session.tenantId)!;
+        if (tenant.deletedAt && method !== "GET")
+          throw new ApiError(
+            409,
+            "Restaura la landing desde Agencia antes de modificarla.",
+          );
         if (path[1] === "connection" && method === "GET")
           return connectionView(
             state.aiConnections?.[tenant.id] || defaultConnection(),
@@ -328,7 +333,12 @@ async function handler(
       }
       if (path[0] === "public" && path[1] === "sessions" && method === "GET") {
         const tenant = state.tenants.find((t) => t.slug === path[2]);
-        if (!tenant || tenant.published === false || !tenant.versions.length)
+        if (
+          !tenant ||
+          tenant.deletedAt ||
+          tenant.published === false ||
+          !tenant.versions.length
+        )
           throw new ApiError(404, "Sesión no disponible");
         return {
           name: tenant.name,
@@ -349,7 +359,12 @@ async function handler(
         method === "POST"
       ) {
         const tenant = state.tenants.find((t) => t.slug === body.slug);
-        if (!tenant || tenant.published === false || !tenant.versions.length)
+        if (
+          !tenant ||
+          tenant.deletedAt ||
+          tenant.published === false ||
+          !tenant.versions.length
+        )
           throw new ApiError(404, "Sesión no disponible");
         if (
           state.runs.filter(
@@ -390,6 +405,7 @@ async function handler(
         const run = state.runs.find((r) => r.id === path[2]);
         if (
           !run ||
+          state.tenants.find((t) => t.id === run.tenantId)?.deletedAt ||
           run.expiresAt < Date.now() ||
           run.tokenHash !== hash(req.cookies.get(`run_${path[2]}`)?.value || "")
         )

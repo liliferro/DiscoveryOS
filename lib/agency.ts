@@ -98,9 +98,11 @@ export function agencyDashboard(state: State) {
           name: t.landingName || t.draft.title,
           slug: t.slug,
           objective: t.draft.discovery?.objective || "Cuestionario predefinido",
-          published: t.published !== false && t.versions.length > 0,
+          published:
+            !t.deletedAt && t.published !== false && t.versions.length > 0,
           version: t.versions.at(-1)?.number || 0,
           runs: state.runs.filter((r) => r.tenantId === t.id).length,
+          deletedAt: t.deletedAt,
         })),
     })),
   };
@@ -211,11 +213,38 @@ export function handleAgency(
   if (
     path[1] === "landings" &&
     path[2] &&
-    path[3] === "publish" &&
+    path.length === 4 &&
+    ["delete", "restore"].includes(path[3]) &&
     method === "POST"
   ) {
     const landing = state.tenants.find((t) => t.id === path[2]);
     if (!landing) throw new AgencyError(404, "Landing no disponible");
+    if (path[3] === "delete") {
+      const input = z
+        .object({ confirmation: z.string().trim().min(1).max(120) })
+        .parse(body);
+      if (input.confirmation !== (landing.landingName || landing.draft.title))
+        throw new AgencyError(
+          422,
+          "Escribe el nombre exacto de la landing para confirmar.",
+        );
+      landing.deletedAt ||= new Date().toISOString();
+    } else {
+      if (!landing.deletedAt) return { ok: true };
+      delete landing.deletedAt;
+      landing.published = false;
+    }
+    return { ok: true };
+  }
+  if (
+    path[1] === "landings" &&
+    path[2] &&
+    path[3] === "publish" &&
+    method === "POST"
+  ) {
+    const landing = state.tenants.find((t) => t.id === path[2]);
+    if (!landing || landing.deletedAt)
+      throw new AgencyError(404, "Landing no disponible");
     landing.versions.push({
       id: randomUUID(),
       number: landing.versions.length + 1,

@@ -62,7 +62,7 @@ export async function advanceConversation(
         r.expiresAt > Date.now() &&
         r.tokenHash === hash(credential),
     );
-    if (!run)
+    if (!run || state.tenants.find((t) => t.id === run.tenantId)?.deletedAt)
       throw new DiscoveryError(
         404,
         "Ejecución no disponible o acceso caducado.",
@@ -178,6 +178,8 @@ export async function advanceConversation(
         );
     return await transaction((state) => {
       const live = state.runs.find((r) => r.id === runId)!;
+      if (state.tenants.find((t) => t.id === live.tenantId)?.deletedAt)
+        throw new DiscoveryError(404, "Esta landing ya no está disponible.");
       const c = live.conversation!;
       if (c.lease?.id !== lockId)
         throw new DiscoveryError(

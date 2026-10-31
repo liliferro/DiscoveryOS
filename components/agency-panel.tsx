@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   Building2,
@@ -12,6 +12,8 @@ import {
   Copy,
   Download,
   Users,
+  Trash2,
+  RotateCcw,
 } from "lucide-react";
 import { api } from "@/lib/client";
 import type { AgencyClient, agencyDashboard } from "@/lib/agency";
@@ -66,6 +68,17 @@ export default function AgencyPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [deleting, setDeleting] =
+    useState<Data["clients"][number]["landings"][number]>();
+  const [confirmation, setConfirmation] = useState("");
+  const deleteDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = deleteDialog.current;
+    if (deleting && dialog && !dialog.open) dialog.showModal();
+    return () => {
+      if (dialog?.open) dialog.close();
+    };
+  }, [deleting]);
   const selected = data?.clients.find((client) => client.id === selectedId);
   useEffect(() => {
     let active = true;
@@ -168,9 +181,82 @@ export default function AgencyPanel({
     });
   }
   const totalLandings =
-    data?.clients.reduce((sum, client) => sum + client.landings.length, 0) || 0;
+    data?.clients.reduce(
+      (sum, client) =>
+        sum + client.landings.filter((landing) => !landing.deletedAt).length,
+      0,
+    ) || 0;
   return (
     <section className="agency-panel">
+      <dialog
+        ref={deleteDialog}
+        className="landing-delete-dialog"
+        aria-labelledby="delete-landing-title"
+        aria-describedby="delete-landing-description"
+        onCancel={(event) => {
+          event.preventDefault();
+          if (!busy) setDeleting(undefined);
+        }}
+      >
+        {deleting && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (busy || confirmation.trim() !== deleting.name) return;
+              void perform(async () => {
+                await api(`agency/landings/${deleting.id}/delete`, "POST", {
+                  confirmation,
+                });
+                await reload();
+                setDeleting(undefined);
+                setMessage(
+                  "Landing eliminada. Su enlace público está desactivado; los prospectos y resultados se conservan.",
+                );
+              });
+            }}
+          >
+            <h2 id="delete-landing-title">¿Eliminar esta landing?</h2>
+            <p id="delete-landing-description">
+              Se desactivarán <strong>/s/{deleting.slug}</strong> y sus
+              conversaciones públicas. Sus {deleting.runs} conversaciones y
+              resultados se conservarán en Landings eliminadas, donde podrás
+              exportarlos o restaurarla.
+            </p>
+            <label>
+              Escribe el nombre para confirmar
+              <strong>{deleting.name}</strong>
+              <input
+                autoComplete="off"
+                value={confirmation}
+                disabled={busy}
+                onChange={(event) => setConfirmation(event.target.value)}
+              />
+            </label>
+            {error && (
+              <p role="alert" className="error">
+                {error}
+              </p>
+            )}
+            <div className="agency-actions">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => setDeleting(undefined)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="button landing-delete-confirm"
+                disabled={busy || confirmation.trim() !== deleting.name}
+              >
+                {busy ? "Eliminando…" : "Confirmar eliminación"}
+              </button>
+            </div>
+          </form>
+        )}
+      </dialog>
       {error && (
         <div role="alert" className="error">
           {error}
@@ -709,111 +795,194 @@ export default function AgencyPanel({
             </form>
           )}
           <div className="agency-landing-grid">
-            {selected.landings.map((landing) => (
-              <article className="agency-landing card" key={landing.id}>
-                <div className="agency-section-heading">
-                  <span
-                    className={
-                      landing.published ? "tag agency-published" : "tag"
-                    }
-                  >
-                    {landing.published ? "Publicada" : "Borrador"}
-                  </span>
-                  <Layers size={20} />
-                </div>
-                <h3>{landing.name}</h3>
-                <p>{landing.objective}</p>
-                <small>/s/{landing.slug}</small>
-                <div className="agency-landing-meta">
-                  <span>{landing.runs} conversaciones</span>
-                  <span>Versión {landing.version}</span>
-                </div>
-                <div className="agency-actions">
-                  <button
-                    className="button secondary"
-                    disabled={busy}
-                    onClick={() =>
-                      void perform(() => onOpenLanding(landing.id))
-                    }
-                  >
-                    <Pencil size={14} />
-                    Editar conversación
-                  </button>
-                  <button
-                    className="button primary"
-                    disabled={busy}
-                    onClick={() =>
-                      void perform(async () => {
-                        await api(
-                          `agency/landings/${landing.id}/publish`,
-                          "POST",
-                          {},
-                        );
-                        await reload();
-                        setMessage(
-                          "Landing publicada. Su enlace ya está disponible.",
-                        );
-                      })
-                    }
-                  >
-                    {landing.published ? "Publicar cambios" : "Publicar"}
-                  </button>
-                </div>
-                <button
-                  className="text-link"
-                  style={{ marginTop: 16 }}
-                  aria-label={`Exportar resultados de ${landing.name}`}
-                  disabled={busy}
-                  onClick={() =>
-                    void perform(() =>
-                      downloadResults({ landingId: landing.id }),
-                    )
-                  }
-                >
-                  <Download size={14} />
-                  Exportar CSV
-                </button>
-                <button
-                  className="text-link"
-                  style={{ marginTop: 16, marginLeft: 18 }}
-                  disabled={busy}
-                  onClick={() =>
-                    void perform(() => onOpenLanding(landing.id, "Sesiones"))
-                  }
-                >
-                  <Users size={14} />
-                  Ver prospectos
-                </button>
-                {landing.published && (
-                  <div className="agency-actions">
-                    <a
-                      className="text-link"
-                      href={`/s/${landing.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+            {selected.landings
+              .filter((landing) => !landing.deletedAt)
+              .map((landing) => (
+                <article className="agency-landing card" key={landing.id}>
+                  <div className="agency-section-heading">
+                    <span
+                      className={
+                        landing.published ? "tag agency-published" : "tag"
+                      }
                     >
-                      Abrir landing <ArrowUpRight size={15} />
-                    </a>
+                      {landing.published ? "Publicada" : "Borrador"}
+                    </span>
+                    <Layers size={20} />
+                  </div>
+                  <h3>{landing.name}</h3>
+                  <p>{landing.objective}</p>
+                  <small>/s/{landing.slug}</small>
+                  <div className="agency-landing-meta">
+                    <span>{landing.runs} conversaciones</span>
+                    <span>Versión {landing.version}</span>
+                  </div>
+                  <button
+                    className="text-link danger"
+                    disabled={busy}
+                    aria-label={`Eliminar landing ${landing.name}`}
+                    onClick={() => {
+                      setConfirmation("");
+                      setError("");
+                      setDeleting(landing);
+                    }}
+                  >
+                    <Trash2 size={14} /> Eliminar landing
+                  </button>
+                  <div className="agency-actions">
                     <button
-                      className="text-link"
+                      className="button secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        void perform(() => onOpenLanding(landing.id))
+                      }
+                    >
+                      <Pencil size={14} />
+                      Editar conversación
+                    </button>
+                    <button
+                      className="button primary"
+                      disabled={busy}
                       onClick={() =>
                         void perform(async () => {
-                          await navigator.clipboard.writeText(
-                            `${location.origin}/s/${landing.slug}`,
+                          await api(
+                            `agency/landings/${landing.id}/publish`,
+                            "POST",
+                            {},
                           );
-                          setMessage("Enlace copiado.");
+                          await reload();
+                          setMessage(
+                            "Landing publicada. Su enlace ya está disponible.",
+                          );
                         })
                       }
                     >
-                      <Copy size={14} />
-                      Copiar enlace
+                      {landing.published ? "Publicar cambios" : "Publicar"}
                     </button>
                   </div>
-                )}
-              </article>
-            ))}
+                  <button
+                    className="text-link"
+                    style={{ marginTop: 16 }}
+                    aria-label={`Exportar resultados de ${landing.name}`}
+                    disabled={busy}
+                    onClick={() =>
+                      void perform(() =>
+                        downloadResults({ landingId: landing.id }),
+                      )
+                    }
+                  >
+                    <Download size={14} />
+                    Exportar CSV
+                  </button>
+                  <button
+                    className="text-link"
+                    style={{ marginTop: 16, marginLeft: 18 }}
+                    disabled={busy}
+                    onClick={() =>
+                      void perform(() => onOpenLanding(landing.id, "Sesiones"))
+                    }
+                  >
+                    <Users size={14} />
+                    Ver prospectos
+                  </button>
+                  {landing.published && (
+                    <div className="agency-actions">
+                      <a
+                        className="text-link"
+                        href={`/s/${landing.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Abrir landing <ArrowUpRight size={15} />
+                      </a>
+                      <button
+                        className="text-link"
+                        onClick={() =>
+                          void perform(async () => {
+                            await navigator.clipboard.writeText(
+                              `${location.origin}/s/${landing.slug}`,
+                            );
+                            setMessage("Enlace copiado.");
+                          })
+                        }
+                      >
+                        <Copy size={14} />
+                        Copiar enlace
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))}
           </div>
-          {!selected.landings.length && (
+          {selected.landings.some((landing) => landing.deletedAt) && (
+            <details className="card agency-deleted-landings">
+              <summary>
+                Landings eliminadas (
+                {
+                  selected.landings.filter((landing) => landing.deletedAt)
+                    .length
+                }
+                )
+              </summary>
+              {selected.landings
+                .filter((landing) => landing.deletedAt)
+                .map((landing) => (
+                  <article className="editor-subcard" key={landing.id}>
+                    <h3>{landing.name}</h3>
+                    <p>
+                      {landing.runs} conversaciones conservadas · /s/
+                      {landing.slug}
+                    </p>
+                    <div className="agency-actions">
+                      <button
+                        className="text-link"
+                        disabled={busy}
+                        onClick={() =>
+                          void perform(async () => {
+                            await api(
+                              `agency/landings/${landing.id}/restore`,
+                              "POST",
+                              {},
+                            );
+                            await reload();
+                            setMessage(
+                              "Landing restaurada como borrador. Publica cuando quieras reactivar su enlace.",
+                            );
+                          })
+                        }
+                      >
+                        <RotateCcw size={14} />
+                        Restaurar como borrador
+                      </button>
+                      <button
+                        className="text-link"
+                        disabled={busy}
+                        onClick={() =>
+                          void perform(() =>
+                            downloadResults({ landingId: landing.id }),
+                          )
+                        }
+                      >
+                        <Download size={14} />
+                        Exportar CSV
+                      </button>
+                      <button
+                        className="text-link"
+                        disabled={busy}
+                        onClick={() =>
+                          void perform(() =>
+                            onOpenLanding(landing.id, "Sesiones"),
+                          )
+                        }
+                      >
+                        <Users size={14} />
+                        Ver prospectos
+                      </button>
+                    </div>
+                  </article>
+                ))}
+            </details>
+          )}
+          {!selected.landings.some((landing) => !landing.deletedAt) && (
             <div className="agency-empty card">
               <Layers size={34} />
               <h3>Su primera landing empieza con un objetivo.</h3>
@@ -915,7 +1084,13 @@ export default function AgencyPanel({
                   <small>{client.industry}</small>
                   <p>{client.objective}</p>
                   <div className="agency-pills">
-                    <span>{client.landings.length} landings</span>
+                    <span>
+                      {
+                        client.landings.filter((landing) => !landing.deletedAt)
+                          .length
+                      }{" "}
+                      landings
+                    </span>
                     <span>{client.products.length} productos</span>
                   </div>
                 </button>

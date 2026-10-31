@@ -44,6 +44,7 @@ export type Config = z.infer<typeof configSchema>;
 export type Question = Config["questions"][number];
 export type Answers = Record<string, string | number | boolean | string[]>;
 export type Tenant = {
+  deletedAt?: string;
   clientId?: string;
   landingName?: string;
   published?: boolean;
