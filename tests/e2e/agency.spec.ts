@@ -5,10 +5,12 @@ test("Agencia: permisos, cliente con dos objetivos, publicación y sesiones inde
   request,
 }) => {
   expect((await request.get("/api/v1/agency/dashboard")).status()).toBe(401);
+  expect((await request.get("/api/v1/agency/export")).status()).toBe(401);
   await request.post("/api/v1/login", {
     data: { tenantId: "norte", password: "discovery-demo" },
   });
   expect((await request.get("/api/v1/agency/dashboard")).status()).toBe(403);
+  expect((await request.get("/api/v1/agency/export")).status()).toBe(403);
   expect(
     (await request.post("/api/v1/agency/clients", { data: {} })).status(),
   ).toBe(403);
@@ -132,6 +134,17 @@ test("Agencia: permisos, cliente con dos objetivos, publicación y sesiones inde
     await request.get(`/api/v1/public/runs/${runId}`)
   ).json();
   expect(persisted.brand.logoUrl).toBe(clientData.logoUrl);
+  const exported = await request.get(
+    `/api/v1/agency/export?landingId=${first.id}`,
+  );
+  expect(exported.status()).toBe(200);
+  expect(exported.headers()["content-type"]).toContain("text/csv");
+  expect(exported.headers()["content-disposition"]).toContain("attachment");
+  expect(await exported.text()).toContain(runId);
+  const emptyExport = await request.get(
+    `/api/v1/agency/export?landingId=${second.id}`,
+  );
+  expect(await emptyExport.text()).not.toContain(runId);
   expect(
     (
       await request.put(`/api/v1/agency/clients/${client.id}`, {
@@ -218,6 +231,16 @@ test("Panel de agencia: crear cliente, crear landing, editar objetivo y publicar
   await page.locator(".agency-client-card").filter({ hasText: name }).click();
   await page.getByRole("button", { name: "Publicar", exact: true }).click();
   await expect(page.getByText("Publicada", { exact: true })).toBeVisible();
+  const downloadEvent = page.waitForEvent("download");
+  await page
+    .getByRole("button", {
+      name: "Exportar resultados del cliente",
+      exact: true,
+    })
+    .click();
+  expect((await downloadEvent).suggestedFilename()).toBe(
+    "discovery-resultados.csv",
+  );
   await expect(
     page.getByRole("link", { name: "Abrir landing" }),
   ).toHaveAttribute("href", /^\/s\//);

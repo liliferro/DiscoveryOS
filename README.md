@@ -10,6 +10,8 @@ El panel registra clientes con nombre, sector, referencia Pantone, color HEX apr
 
 **Editar conversación** abre el Constructor de esa landing, donde se ajustan objetivo, contexto, productos, campos, CTA y contacto antes de publicar. Los clientes y las landings se guardan en el documento privado de Supabase del MVP; no se crean usuarios ni se comparten accesos externos al registrar un cliente. La normalización por entidad y las invitaciones de acceso para equipos de clientes quedan fuera de esta primera versión. Los tres espacios originales se conservan como clientes con una landing cada uno.
 
+La primera versión se usa con una sola administradora y enlaces `/s/...` dentro de Discovery OS. **Exportar todos los resultados**, **Exportar resultados del cliente** y **Exportar CSV** descargan un archivo UTF-8 para hojas de cálculo. Incluye sesiones en curso y completadas, resumen, intereses, perfil y respuestas; excluye tokens de acceso y configuración de claves. La descarga exige autorización de agencia, aplica el alcance solicitado y neutraliza fórmulas en celdas con contenido no confiable. No hay envíos automáticos ni integración CRM.
+
 ## Despliegue en Vercel + Supabase
 
 Requiere Node.js 24 y un proyecto Supabase dedicado. La configuración de Vercel está en `vercel.json`.

@@ -10,6 +10,7 @@ import {
   Layers,
   Check,
   Copy,
+  Download,
 } from "lucide-react";
 import { api } from "@/lib/client";
 import type { AgencyClient, agencyDashboard } from "@/lib/agency";
@@ -89,6 +90,29 @@ export default function AgencyPanel({
   }
   async function reload() {
     setData(await api<Data>("agency/dashboard"));
+  }
+  async function downloadResults(
+    scope: { clientId?: string; landingId?: string } = {},
+  ) {
+    const response = await fetch(
+      `/api/v1/agency/export?${new URLSearchParams(scope)}`,
+      { cache: "no-store" },
+    );
+    if (!response.ok) {
+      const data = await response.json();
+      throw Error(data.message || "No se pudo exportar");
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "discovery-resultados.csv";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setMessage(
+      "Exportación descargada. Puedes abrir el CSV en Excel o Google Sheets.",
+    );
   }
   function edit(client?: AgencyClient) {
     setClientForm(
@@ -519,10 +543,25 @@ export default function AgencyPanel({
                 </span>
               </div>
             </div>
-            <button className="button secondary" onClick={() => edit(selected)}>
-              <Pencil size={15} />
-              Editar cliente
-            </button>
+            <div className="agency-actions">
+              <button
+                className="button secondary"
+                disabled={busy}
+                onClick={() =>
+                  void perform(() => downloadResults({ clientId: selected.id }))
+                }
+              >
+                <Download size={15} />
+                Exportar resultados del cliente
+              </button>
+              <button
+                className="button secondary"
+                onClick={() => edit(selected)}
+              >
+                <Pencil size={15} />
+                Editar cliente
+              </button>
+            </div>
           </div>
           <div className="agency-section-heading">
             <div>
@@ -716,6 +755,20 @@ export default function AgencyPanel({
                     {landing.published ? "Publicar cambios" : "Publicar"}
                   </button>
                 </div>
+                <button
+                  className="text-link"
+                  style={{ marginTop: 16 }}
+                  aria-label={`Exportar resultados de ${landing.name}`}
+                  disabled={busy}
+                  onClick={() =>
+                    void perform(() =>
+                      downloadResults({ landingId: landing.id }),
+                    )
+                  }
+                >
+                  <Download size={14} />
+                  Exportar CSV
+                </button>
                 {landing.published && (
                   <div className="agency-actions">
                     <a
@@ -785,10 +838,20 @@ export default function AgencyPanel({
                 Una identidad por cliente. Tantas conversaciones como objetivos.
               </p>
             </div>
-            <button className="button primary" onClick={() => edit()}>
-              <Plus size={17} />
-              Nuevo cliente
-            </button>
+            <div className="agency-actions">
+              <button
+                className="button secondary"
+                disabled={busy || !data}
+                onClick={() => void perform(() => downloadResults())}
+              >
+                <Download size={15} />
+                Exportar todos los resultados
+              </button>
+              <button className="button primary" onClick={() => edit()}>
+                <Plus size={17} />
+                Nuevo cliente
+              </button>
+            </div>
           </div>
           <input
             className="agency-search"

@@ -29,6 +29,7 @@ import {
 } from "@/lib/cloud-auth";
 import { processLegacyRun } from "@/lib/job-runner";
 import { handleAgency, AgencyError } from "@/lib/agency";
+import { exportLeads } from "@/lib/lead-export";
 export const maxDuration = 60;
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -194,6 +195,11 @@ async function handler(
           throw new ApiError(
             403,
             "Solo la administración de la agencia puede gestionar clientes y landings.",
+          );
+        if (path.length === 2 && path[1] === "export" && method === "GET")
+          return exportLeads(
+            state,
+            Object.fromEntries(req.nextUrl.searchParams),
           );
         return handleAgency(state, session, path, method, body);
       }
@@ -437,6 +443,17 @@ async function handler(
       }
       throw new ApiError(404, "Recurso no disponible");
     });
+    if (path[0] === "agency" && path[1] === "export" && method === "GET") {
+      const file = result as { csv: string; filename: string };
+      return new NextResponse(file.csv, {
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${file.filename}"`,
+          "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
     const response = NextResponse.json(result, {
       headers: { "Cache-Control": "no-store", "X-Request-Id": requestId },
     });
