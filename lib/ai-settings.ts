@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { isCloud } from "./cloud.ts";
 export type AiConnection = {
+  provider?: "openai" | "anthropic";
   cipher?: string;
   model: string;
   enabled: boolean;
@@ -18,6 +19,7 @@ export function testFixtureEnabled() {
   );
 }
 export const connectionSchema = z.object({
+  provider: z.enum(["openai", "anthropic"]).optional(),
   apiKey: z.string().max(500).optional(),
   model: z.string().regex(/^[a-zA-Z0-9._-]{3,100}$/),
   enabled: z.boolean(),
@@ -64,23 +66,44 @@ export function decryptSecret(secret: string) {
 export function connectionKey(connection: AiConnection) {
   return connection.cipher
     ? decryptSecret(connection.cipher)
-    : process.env.OPENAI_API_KEY || "";
+    : (connection.provider === "anthropic"
+        ? process.env.ANTHROPIC_API_KEY
+        : process.env.OPENAI_API_KEY) || "";
 }
 export function defaultConnection(): AiConnection {
+  const provider =
+    process.env.AI_PROVIDER === "anthropic" ? "anthropic" : "openai";
   return {
-    model: process.env.OPENAI_MODEL || "gpt-6.1-terra",
-    enabled: isCloud() && !!process.env.OPENAI_API_KEY,
+    provider,
+    model:
+      provider === "anthropic"
+        ? process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5"
+        : process.env.OPENAI_MODEL || "gpt-6.1-terra",
+    enabled:
+      isCloud() &&
+      !!(provider === "anthropic"
+        ? process.env.ANTHROPIC_API_KEY
+        : process.env.OPENAI_API_KEY),
     verified: false,
     dailyLimit: 100,
   };
 }
 export function connectionView(connection: AiConnection) {
   return {
+    provider: connection.provider || "openai",
     model: connection.model,
     enabled: connection.enabled,
     verified: connection.verified,
     dailyLimit: connection.dailyLimit,
-    configured: !!connection.cipher || !!process.env.OPENAI_API_KEY,
+    configured: !!connectionKeyConfigured(connection),
     environmentManaged: isCloud() && !process.env.APP_ENCRYPTION_KEY,
   };
+}
+function connectionKeyConfigured(connection: AiConnection) {
+  return (
+    connection.cipher ||
+    (connection.provider === "anthropic"
+      ? process.env.ANTHROPIC_API_KEY
+      : process.env.OPENAI_API_KEY)
+  );
 }

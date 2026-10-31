@@ -189,6 +189,7 @@ async function handler(
           }
           if (current.model !== input.model) current.verified = false;
           Object.assign(current, {
+            provider: input.provider || current.provider || "openai",
             model: input.model,
             enabled: input.enabled,
             dailyLimit: input.dailyLimit,

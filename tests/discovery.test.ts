@@ -13,6 +13,7 @@ import {
   connectionView,
 } from "../lib/ai-settings.ts";
 import { generateDecision } from "../lib/ai-provider.ts";
+import { claudeSchema } from "../lib/claude-provider.ts";
 const config = { ...structuredClone(defaultDiscovery), enabled: true };
 function decision(answered = 0): Decision {
   return {
@@ -201,4 +202,57 @@ test("No sustituye una denegación por un resultado simulado", async () => {
       ),
     /clave no está autorizada/,
   );
+});
+test("Claude usa Messages y adapta el schema sin omitir la validación local", async () => {
+  const c: Conversation = {
+    revision: 0,
+    turns: [],
+    closed: false,
+    provider: "anthropic",
+    usage: [],
+    calls: 0,
+    noticeVersion: "test",
+    consentedAt: "",
+  };
+  let called = false;
+  const fetcher: typeof fetch = async (input, init) => {
+    const request = new Request(input, init);
+    assert.equal(request.url, "https://api.anthropic.com/v1/messages");
+    const body = await request.json();
+    assert.equal(body.output_config.format.type, "json_schema");
+    assert.equal(
+      body.output_config.format.schema.properties.summary.maxLength,
+      undefined,
+    );
+    assert.ok(body.output_config.format.schema.properties.summary.description);
+    called = true;
+    return Response.json({
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: "claude-sonnet-5-5",
+      stop_reason: "end_turn",
+      content: [{ type: "text", text: JSON.stringify(decision()) }],
+      usage: { input_tokens: 30, output_tokens: 40 },
+    });
+  };
+  const result = await generateDecision(
+    config,
+    c,
+    {
+      provider: "anthropic",
+      model: "claude-sonnet-5-5",
+      cipher: encryptSecret("sk-clave-ficticia-unitaria"),
+      enabled: true,
+      verified: false,
+      dailyLimit: 100,
+    },
+    fetcher,
+  );
+  assert.equal(called, true);
+  assert.equal(result.usage.model, "claude-sonnet-5-5");
+  assert.deepEqual(claudeSchema({ type: "integer", minimum: 1 }), {
+    type: "integer",
+    description: "minimum: 1",
+  });
 });

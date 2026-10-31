@@ -6,6 +6,7 @@ import {
 } from "./discovery.ts";
 import { connectionKey, type AiConnection } from "./ai-settings.ts";
 import { z } from "zod";
+import { requestClaude, verifyClaude } from "./claude-provider.ts";
 export class DiscoveryError extends Error {
   constructor(
     public status: number,
@@ -40,52 +41,73 @@ export async function generateDecision(
   if (!key)
     throw new DiscoveryError(
       503,
-      "Configura tu clave de OpenAI en Integraciones para iniciar la conversación.",
+      "Configura la clave del proveedor en Integraciones para iniciar la conversación.",
     );
   const answered = conversation.turns.filter((t) => t.answer !== undefined);
   const schema = JSON.parse(JSON.stringify(decisionSchemaToJson()));
   let failure = "La IA devolvió una respuesta incompleta. Puedes reintentar.";
   for (let attempt = 0; attempt < 2; attempt++) {
+    const context = JSON.stringify({
+      conversation: answered.map((t, i) => ({
+        answerNumber: i + 1,
+        question: t.question.text,
+        answer: t.answer,
+      })),
+      previousProfile: conversation.decision?.profile || [],
+      repair: attempt
+        ? "Revisa los campos, las referencias y las reglas de cierre."
+        : null,
+    });
     let response: Response;
     try {
-      response = await fetcher("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(25000),
-        body: JSON.stringify({
-          model: connection.model,
-          store: false,
-          max_output_tokens: 4500,
-          instructions: systemPrompt(config, answered.length),
-          input: [
-            {
-              role: "user",
-              content: JSON.stringify({
-                conversation: answered.map((t, i) => ({
-                  answerNumber: i + 1,
-                  question: t.question.text,
-                  answer: t.answer,
-                })),
-                previousProfile: conversation.decision?.profile || [],
-                repair: attempt
-                  ? "La salida anterior no superó la validación. Comprueba referencias, cierre, campos y catálogo."
-                  : null,
-              }),
-            },
-          ],
-          text: {
-            format: {
-              type: "json_schema",
-              name: "discovery_turn",
-              strict: true,
+      response =
+        connection.provider === "anthropic"
+          ? await requestClaude(
+              key,
+              connection.model,
+              systemPrompt(config, answered.length),
+              context,
               schema,
-            },
-          },
-        }),
-      });
+              fetcher,
+            )
+          : await fetcher("https://api.openai.com/v1/responses", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${key}`,
+                "Content-Type": "application/json",
+              },
+              signal: AbortSignal.timeout(25000),
+              body: JSON.stringify({
+                model: connection.model,
+                store: false,
+                max_output_tokens: 4500,
+                instructions: systemPrompt(config, answered.length),
+                input: [
+                  {
+                    role: "user",
+                    content: JSON.stringify({
+                      conversation: answered.map((t, i) => ({
+                        answerNumber: i + 1,
+                        question: t.question.text,
+                        answer: t.answer,
+                      })),
+                      previousProfile: conversation.decision?.profile || [],
+                      repair: attempt
+                        ? "La salida anterior no superó la validación. Comprueba referencias, cierre, campos y catálogo."
+                        : null,
+                    }),
+                  },
+                ],
+                text: {
+                  format: {
+                    type: "json_schema",
+                    name: "discovery_turn",
+                    strict: true,
+                    schema,
+                  },
+                },
+              }),
+            });
     } catch {
       throw new DiscoveryError(
         504,
@@ -93,6 +115,11 @@ export async function generateDecision(
       );
     }
     if (!response.ok) {
+      if (response.status === 402)
+        throw new DiscoveryError(
+          402,
+          "El proveedor de IA no tiene saldo disponible. Revisa la facturación de la cuenta de API.",
+        );
       if (response.status === 401 || response.status === 403)
         throw new DiscoveryError(
           503,
@@ -101,7 +128,7 @@ export async function generateDecision(
       if (response.status === 429)
         throw new DiscoveryError(
           429,
-          "OpenAI alcanzó un límite de solicitudes o saldo. Revisa tu cuenta y reintenta.",
+          "El proveedor de IA alcanzó un límite de solicitudes o saldo. Revisa tu cuenta y reintenta.",
         );
       if (response.status >= 500 && attempt === 0) continue;
       throw new DiscoveryError(
@@ -161,6 +188,10 @@ export async function verifyConnection(connection: AiConnection) {
   if (!key) throw new DiscoveryError(422, "Introduce una clave de API.");
   let response: Response;
   try {
+    if (connection.provider === "anthropic") {
+      await verifyClaude(key, connection.model);
+      return { ok: true };
+    }
     response = await fetch(
       `https://api.openai.com/v1/models/${encodeURIComponent(connection.model)}`,
       {
@@ -169,7 +200,10 @@ export async function verifyConnection(connection: AiConnection) {
       },
     );
   } catch {
-    throw new DiscoveryError(504, "No se pudo conectar con OpenAI.");
+    throw new DiscoveryError(
+      504,
+      "No se pudo conectar con el proveedor de IA.",
+    );
   }
   if (!response.ok)
     throw new DiscoveryError(

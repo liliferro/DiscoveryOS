@@ -152,10 +152,11 @@ export default function AdaptiveSession({
                 <p>
                   <strong>Antes de empezar · prueba de discovery</strong>
                   <br />
-                  Tus respuestas se enviarán a OpenAI para personalizar las
-                  preguntas y se guardarán en la plataforma. No incluyas
-                  nombres, datos de contacto, documentos ni información clínica
-                  sensible. Utiliza un caso ficticio mientras validamos el piloto.
+                  Tus respuestas se enviarán al proveedor de IA configurado para
+                  personalizar las preguntas y se guardarán en la plataforma. No
+                  incluyas nombres, datos de contacto, documentos ni información
+                  clínica sensible. Utiliza un caso ficticio mientras validamos
+                  el piloto.
                 </p>
                 <label className="checkbox">
                   <input

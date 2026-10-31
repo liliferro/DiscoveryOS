@@ -103,7 +103,9 @@ export async function advanceConversation(
         revision: 0,
         turns: [],
         closed: false,
-        provider: testFixtureEnabled() ? "fixture" : "openai",
+        provider: testFixtureEnabled()
+          ? "fixture"
+          : connection.provider || "openai",
         usage: [],
         calls: 0,
         noticeVersion: "adaptive-local-v1",
@@ -132,6 +134,9 @@ export async function advanceConversation(
     } else if (c.turns.length && c.turns.at(-1)?.answer === undefined)
       return { replay: publicRun(run) };
     c.lease = { id: lockId, until: Date.now() + 65000 };
+    c.provider = testFixtureEnabled()
+      ? "fixture"
+      : connection.provider || "openai";
     c.error = undefined;
     c.calls += 2;
     state.aiDaily[dayKey] = count + 2;

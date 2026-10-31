@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 type Connection = {
+  provider?: "openai" | "anthropic";
   model: string;
   configured: boolean;
   enabled: boolean;
@@ -35,6 +36,7 @@ export default function AiConnectionPanel() {
     setMessage("");
     try {
       const next = await api<Connection>("admin/connection", "PUT", {
+        provider: data.provider || "openai",
         model: data.model,
         enabled: data.enabled,
         dailyLimit: data.dailyLimit,
@@ -67,7 +69,10 @@ export default function AiConnectionPanel() {
   }
   return (
     <section className="card editor ai-connection">
-      <div className="eyebrow">MOTOR CONVERSACIONAL / OPENAI</div>
+      <div className="eyebrow">
+        MOTOR CONVERSACIONAL /{" "}
+        {data?.provider === "anthropic" ? "CLAUDE" : "OPENAI"}
+      </div>
       <h2>Conecta la inteligencia de tu discovery.</h2>
       <p className="muted">
         Cada empresa tiene su propia conexión. Las llamadas salen del servidor;
@@ -94,7 +99,27 @@ export default function AiConnectionPanel() {
             {data.verified ? " · acceso comprobado" : ""}
           </span>
           <label>
-            Clave de API de OpenAI
+            Proveedor
+            <select
+              value={data.provider || "openai"}
+              onChange={(e) => {
+                const provider = e.target.value as "openai" | "anthropic";
+                setData({
+                  ...data,
+                  provider,
+                  model:
+                    provider === "anthropic"
+                      ? "claude-sonnet-5-5"
+                      : "gpt-6.1-terra",
+                });
+              }}
+            >
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Claude · Anthropic</option>
+            </select>
+          </label>
+          <label>
+            Clave de API del proveedor
             <input
               autoComplete="off"
               type="password"

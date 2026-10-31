@@ -91,7 +91,7 @@ export type Conversation = {
   }[];
   decision?: Decision;
   closed: boolean;
-  provider: "openai" | "fixture";
+  provider: "openai" | "anthropic" | "fixture";
   usage: {
     model: string;
     responseId: string;

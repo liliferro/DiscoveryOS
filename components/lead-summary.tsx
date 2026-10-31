@@ -15,7 +15,7 @@ export default function LeadSummary({
       <span className="tag">
         {c.provider === "fixture"
           ? "Prueba automatizada · IA simulada"
-          : "Conversación con IA · OpenAI"}
+          : `Conversación con IA · ${c.provider === "anthropic" ? "Claude" : "OpenAI"}`}
       </span>
       <h1>Esto es lo que nos contaste.</h1>
       <p className="lead-text">{d.summary}</p>
@@ -96,8 +96,8 @@ export default function LeadSummary({
         </>
       )}
       <p className="small muted">
-        La conversación queda guardada en la plataforma. No se envían solicitudes
-        de contacto desde esta versión.
+        La conversación queda guardada en la plataforma. No se envían
+        solicitudes de contacto desde esta versión.
       </p>
       <button className="button secondary" onClick={() => window.print()}>
         Imprimir resumen

@@ -15,6 +15,9 @@ Variables de producción:
 | `SUPABASE_SECRET_KEY` | Clave del servidor para la persistencia privada |
 | `OPENAI_API_KEY` | Clave del motor conversacional |
 | `OPENAI_MODEL` | Modelo con Structured Outputs; predeterminado `gpt-6.1-terra` |
+| `AI_PROVIDER` | `openai` o `anthropic`, selección explícita del proveedor |
+| `ANTHROPIC_API_KEY` | Clave de Claude si se selecciona Anthropic |
+| `ANTHROPIC_MODEL` | Modelo Claude; predeterminado `claude-sonnet-5-5` |
 | `APP_BASE_URL` | Origen canónico opcional; Vercel también proporciona sus URLs de sistema |
 | `APP_ENCRYPTION_KEY` | Opcional: 32 bytes en base64 para claves por empresa |
 
@@ -64,4 +67,4 @@ Los tests E2E usan una base independiente y un doble de IA explícito; no consum
 
 El ejemplo dental segmenta intereses por servicio, no determina diagnósticos, tratamientos ni candidaturas. Usar personas ficticias durante la validación del piloto. Quedan pendientes CRM/contactos, agenda, recuperación avanzada de cuentas, retención automática, esquema relacional por entidad, investigación web real y evaluación de calidad de modelos.
 
-La clave `ANTHROPIC_API_KEY` puede guardarse en Vercel, pero el adaptador Claude aún no está implementado. El motor conversacional actual utiliza OpenAI.
+El motor admite OpenAI Responses y Claude Messages con salida estructurada y validación compartida. El proveedor se selecciona explícitamente mediante `AI_PROVIDER` o desde la conexión de la empresa; no se cambia automáticamente al fallar una llamada. Los errores de saldo o cuota se muestran sin publicar un resultado simulado.
