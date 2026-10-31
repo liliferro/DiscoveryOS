@@ -27,7 +27,7 @@ Fecha: revisión iniciada el 30 y terminada el 31 de octubre de 2026. Alcance: a
 | Accesibilidad | El contador alteraba el nombre accesible de la navegación; faltaba foco tras cambiar de pregunta. | Nombres accesibles estables, indicación de página activa y foco en la pregunta nueva. |
 | Imágenes | Un logo externo no disponible mostraba una imagen rota. | Sustitución por icono de marca o conservación del nombre sin imagen rota. |
 | UX | El segundo paso repetía el bloque visual completo de bienvenida antes del contacto. | Pantalla de contacto más compacta; campos legibles en móvil. |
-| Diseño | Faltaba profundidad visual y coherencia entre estados. | Fondos ambientales suaves, superficies con profundidad, navegación más clara y transiciones breves. Se respeta la preferencia de reducir movimiento. |
+| Diseño | Faltaba profundidad visual y coherencia entre estados. | Fondos ambientales suaves, superficies con profundidad, navegación más clara y transiciones breves. La entrada del contenido conserva su opacidad para mantener el contraste durante la animación. Se respeta la preferencia de reducir movimiento. |
 | Seguridad web | Faltaban restricciones complementarias de navegador e indexación privada. | Cabeceras de permisos y CSP para formularios, objetos y marcos; noindex para administración, sesiones privadas y API. |
 | Calidad continua | GitHub no ejecutaba los recorridos de navegador ni la auditoría de dependencias de producción. | Ambos se incorporan al flujo de CI. |
 

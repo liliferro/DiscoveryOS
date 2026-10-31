@@ -2037,11 +2037,9 @@ summary:focus-visible {
 }
 @keyframes panel-enter {
   from {
-    opacity: 0.6;
     transform: translateY(5px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }

@@ -187,15 +187,23 @@ test("Discovery adaptativa: contexto privado, consentimiento, edición, segmenta
   await expect(
     page.getByRole("button", { name: "Imprimir resumen" }),
   ).toHaveCount(0);
+  await expect(page.locator(".patient-result")).toHaveCSS("opacity", "1");
   const resultAccessibility = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
   expect(
     resultAccessibility.violations.map((v) => ({
       rule: v.id,
-      nodes: v.nodes.map((n) => n.target),
+      nodes: v.nodes.map((n) => ({
+        target: n.target,
+        detail: n.failureSummary,
+      })),
     })),
   ).toEqual([]);
+  await page.screenshot({
+    path: "docs/screenshots/audit-patient-result.png",
+    fullPage: true,
+  });
   await expect(
     page.getByRole("heading", { name: "Perfil y trazabilidad" }),
   ).toHaveCount(0);
