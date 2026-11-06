@@ -41,6 +41,20 @@ export default function DiscoveryEditor({
       </div>
       {d.enabled && (
         <>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={!!config.dentalMapEnabled}
+              onChange={(e) =>
+                onChange({ ...config, dentalMapEnabled: e.target.checked })
+              }
+            />
+            Incluir mapa dental interactivo antes de las preguntas
+          </label>
+          <p className="muted small">
+            Para landings odontológicas. La selección se guarda con el prospecto
+            y orienta la conversación con IA; no es un diagnóstico.
+          </p>
           <label>
             Texto del call to action
             <input

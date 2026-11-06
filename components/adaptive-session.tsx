@@ -1,15 +1,10 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import BrandLogo from "./brand-logo";
+import { LandingHeader, JourneySteps, JourneyIntro } from "./landing-journey";
+import DentalMap from "./dental-map";
+import type { DentalMapValue } from "@/lib/dental-map";
 import { useRouter } from "next/navigation";
-import {
-  AudioLines,
-  ArrowLeft,
-  ArrowRight,
-  LoaderCircle,
-  Check,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, LoaderCircle, Check } from "lucide-react";
 import type { Run, Config } from "@/lib/domain";
 import { api } from "@/lib/client";
 import { brandStyle } from "@/lib/brand";
@@ -54,7 +49,13 @@ export default function AdaptiveSession({
   const [contactConsent, setContactConsent] = useState(!!initialRun?.contact);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [mapScreen, setMapScreen] = useState(false);
+  const [dentalMap, setDentalMap] = useState<DentalMapValue>(
+    initialRun?.dentalMap || { skipped: false, teeth: [] },
+  );
   const c = run?.conversation;
+  const config = run?.config || info?.version.config;
+  const dental = !!config?.dentalMapEnabled;
   const questionHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (!busy) questionHeading.current?.focus({ preventScroll: true });
@@ -101,7 +102,12 @@ export default function AdaptiveSession({
       /* Sin datos personales. */
     }
   }, [facts, runId]);
-  async function start() {
+  async function start(mapConfirmed = false) {
+    if (run && dental && !mapConfirmed) {
+      setMapScreen(true);
+      setError("");
+      return;
+    }
     nextLoadingFact();
     setBusy(true);
     setError("");
@@ -151,6 +157,7 @@ export default function AdaptiveSession({
           revision: c?.revision || 0,
           operationId,
           privacy: consent || run.privacy,
+          ...(!turn && dental ? { dentalMap } : {}),
           ...(turn ? { index, answer: answer.trim() } : {}),
         },
       );
@@ -181,34 +188,33 @@ export default function AdaptiveSession({
         : "";
   return (
     <div
-      className="public-app adaptive-app"
+      className="public-app adaptive-app journey-app"
       style={brandStyle(color) as React.CSSProperties}
     >
-      <header className="public-header">
-        <Link href="/" className="wordmark">
-          <span className="logo">
-            <AudioLines size={22} />
-          </span>
-          discovery<span className="os">OS</span>
-        </Link>
-        <span className="public-brand">
-          {(run?.brand.logoUrl || info?.logoUrl) && (
-            <BrandLogo
-              className="public-client-logo"
-              src={(run?.brand.logoUrl || info?.logoUrl)!}
-              alt={`Logo de ${name}`}
-              width={110}
-              height={42}
-            />
-          )}
-          {name}
-        </span>
-        <span className="demo-pill">
-          <span />
-          Discovery conversacional
-        </span>
-      </header>
+      <LandingHeader
+        name={name}
+        logoUrl={run?.brand.logoUrl || info?.logoUrl}
+        config={config}
+      />
       <main className={c?.closed ? "public-report" : "public-main"}>
+        <JourneySteps
+          dental={dental}
+          stage={
+            c?.closed
+              ? dental
+                ? 4
+                : 3
+              : c?.turns.length
+                ? dental
+                  ? 3
+                  : 2
+                : mapScreen
+                  ? 2
+                  : run
+                    ? 1
+                    : 0
+          }
+        />
         {error && (
           <div className="error" role="alert">
             {error}
@@ -223,6 +229,15 @@ export default function AdaptiveSession({
           />
         ) : c?.closed && run ? (
           <LeadSummary run={run} />
+        ) : mapScreen && !c?.turns.length ? (
+          <DentalMap
+            value={dentalMap}
+            onChange={setDentalMap}
+            onContinue={() => {
+              void start(true);
+            }}
+            onBack={() => setMapScreen(false)}
+          />
         ) : !c?.turns.length ? (
           <form
             className={run ? "welcome contact-welcome" : "welcome"}
@@ -234,15 +249,9 @@ export default function AdaptiveSession({
             <span className="eyebrow">
               {name?.toUpperCase()} / UNA CONVERSACIÓN A TU MEDIDA
             </span>
-            <div className="welcome-symbol">
-              <AudioLines size={52} />
-            </div>
             <h1>{info?.version.config.title || run?.config.title}</h1>
             <p>{info?.version.config.description || run?.config.description}</p>
-            <div className="session-facts">
-              <span>Una pregunta a la vez</span>
-              <span>Según lo que nos cuentes</span>
-            </div>
+            {!run && <JourneyIntro dental={dental} />}
             {run && (
               <>
                 {run.contactRequired && (
@@ -307,12 +316,13 @@ export default function AdaptiveSession({
                   <p>
                     <strong>Antes de empezar · prueba de discovery</strong>
                     <br />
-                    Tus respuestas se enviarán al proveedor de IA configurado
-                    para personalizar las preguntas y se guardarán en la
-                    plataforma. No incluyas nombres, datos de contacto,
-                    documentos ni información clínica sensible en las respuestas
-                    a la conversación. Utiliza un caso ficticio mientras
-                    validamos el piloto.
+                    Tus respuestas
+                    {dental ? " y la selección del mapa dental" : ""} se
+                    enviarán al proveedor de IA configurado para personalizar
+                    las preguntas y se guardarán en la plataforma. No incluyas
+                    nombres, datos de contacto, documentos ni información
+                    clínica sensible en las respuestas a la conversación.
+                    Utiliza un caso ficticio mientras validamos el piloto.
                   </p>
                   <label className="checkbox">
                     <input

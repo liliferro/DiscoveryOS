@@ -10,9 +10,11 @@ import { DiscoveryError, generateDecision } from "./ai-provider.ts";
 import type { Run } from "./domain.ts";
 import { landingFacts } from "./discovery-facts.ts";
 import { preparePatientResult } from "./patient-result.ts";
+import { dentalMapSchema, dentalMapSummary } from "./dental-map.ts";
 const hash = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 const bodySchema = z.object({
+  dentalMap: dentalMapSchema.optional(),
   revision: z.number().int().min(0),
   operationId: z.string().uuid(),
   index: z.number().int().min(0).max(11).optional(),
@@ -24,6 +26,7 @@ export function publicConfig(config: Run["config"], brand?: Run["brand"]) {
   return discovery?.enabled
     ? {
         title: config.title,
+        dentalMapEnabled: config.dentalMapEnabled,
         loadingFacts: landingFacts(config, brand),
         description: config.description,
         ctaLabel: config.ctaLabel,
@@ -112,6 +115,16 @@ export async function advanceConversation(
         );
       return { replay: publicRun(run) };
     }
+    if (body.dentalMap && (!run.config.dentalMapEnabled || c?.turns.length))
+      throw new DiscoveryError(
+        409,
+        "El mapa se registra antes de comenzar la conversación.",
+      );
+    if (run.config.dentalMapEnabled && !run.dentalMap && !body.dentalMap)
+      throw new DiscoveryError(
+        422,
+        "Completa el mapa dental o elige contarlo en la conversación.",
+      );
     if (c?.lease && c.lease.until > Date.now())
       throw new DiscoveryError(
         409,
@@ -169,6 +182,7 @@ export async function advanceConversation(
     c.error = undefined;
     c.calls += 2;
     state.aiDaily[dayKey] = count + 2;
+    if (body.dentalMap) run.dentalMap = body.dentalMap;
     return {
       run: structuredClone(run),
       connection: structuredClone(connection),
@@ -193,6 +207,7 @@ export async function advanceConversation(
               if (c?.lease?.id === lockId) c.usage.push(usage);
             });
           },
+          run.dentalMap ? dentalMapSummary(run.dentalMap) : undefined,
         );
     return await transaction((state) => {
       const live = state.runs.find((r) => r.id === runId)!;

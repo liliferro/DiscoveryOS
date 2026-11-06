@@ -44,6 +44,7 @@ test("La exportación limita las filas a la landing solicitada y omite credencia
     createdAt: "2026-10-30T12:00:00Z",
     state: "draft",
     answers: { goal: "=SUM(1,2)" },
+    dentalMap: { skipped: false, teeth: [{ number: 11, status: "missing" }] },
     tokenHash: "credencial-privada-que-no-se-exporta",
   };
   const state: State = {
@@ -58,6 +59,8 @@ test("La exportación limita las filas a la landing solicitada y omite credencia
   assert.ok(!file.csv.includes(run.tokenHash));
   assert.ok(file.csv.includes("persona@example.test"));
   assert.ok(file.csv.includes("Consentimiento de contacto"));
+  assert.ok(file.csv.includes("Mapa dental declarado"));
+  assert.ok(file.csv.includes('""status"":""missing""'));
   assert.throws(
     () => exportLeads(state, { clientId: "inexistente" }),
     /Cliente no disponible/,

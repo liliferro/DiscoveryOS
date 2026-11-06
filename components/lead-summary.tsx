@@ -2,6 +2,7 @@
 import type { Run } from "@/lib/domain";
 import { ArrowRight, Check, CalendarDays } from "lucide-react";
 import LeadContactCard from "./lead-contact-card";
+import { dentalMapSummary } from "@/lib/dental-map";
 export default function LeadSummary({
   run,
   internal = false,
@@ -123,6 +124,12 @@ export default function LeadSummary({
       </span>
       <h1>Esto es lo que nos contaste.</h1>
       {run.contact && <LeadContactCard contact={run.contact} />}
+      {run.dentalMap && (
+        <div className="notice">
+          <strong>Mapa dental · información aportada por la persona</strong>
+          <p>{dentalMapSummary(run.dentalMap)}</p>
+        </div>
+      )}
       <span className="tag">
         Resultado guardado · pendiente de revisión del equipo
       </span>

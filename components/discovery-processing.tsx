@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { AudioLines, Heart, Sparkles } from "lucide-react";
 import type { DiscoveryFact } from "@/lib/discovery-facts";
 
@@ -15,16 +15,17 @@ export default function DiscoveryProcessing({
   onNextFact: () => void;
 }) {
   const [seconds, setSeconds] = useState(0);
+  const rotateFact = useEffectEvent(onNextFact);
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
     let elapsed = 0;
     const timer = window.setInterval(() => {
       elapsed++;
       setSeconds(elapsed);
-      if (elapsed % 8 === 0) onNextFact();
+      if (elapsed % 8 === 0) rotateFact();
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [onNextFact]);
+  }, []);
   const messages = first
     ? [
         "Queremos empezar por lo que es importante para ti.",

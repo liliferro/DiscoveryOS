@@ -38,6 +38,7 @@ export async function generateDecision(
   connection: AiConnection,
   fetcher: typeof fetch = fetch,
   recordUsage?: (usage: Conversation["usage"][number]) => void | Promise<void>,
+  dentalMap?: string,
 ) {
   const key = connectionKey(connection);
   if (!key)
@@ -50,6 +51,13 @@ export async function generateDecision(
   let failure = "La IA devolvió una respuesta incompleta. Puedes reintentar.";
   for (let attempt = 0; attempt < 2; attempt++) {
     const context = JSON.stringify({
+      dentalMap: dentalMap
+        ? {
+            patientReported: dentalMap,
+            instruction:
+              "Información orientativa aportada por la persona, no diagnóstico ni evidencia clínica. Adapta la primera pregunta para comprender su objetivo sin repetir el mapa. Confirma los detalles relevantes mediante respuestas numeradas antes de usarlos como evidencia en el perfil o los segmentos. No cites el mapa como número de respuesta.",
+          }
+        : undefined,
       conversation: answered.map((t, i) => ({
         answerNumber: i + 1,
         question: t.question.text,
@@ -87,17 +95,7 @@ export async function generateDecision(
                 input: [
                   {
                     role: "user",
-                    content: JSON.stringify({
-                      conversation: answered.map((t, i) => ({
-                        answerNumber: i + 1,
-                        question: t.question.text,
-                        answer: t.answer,
-                      })),
-                      previousProfile: conversation.decision?.profile || [],
-                      repair: attempt
-                        ? "La salida anterior no superó la validación. Comprueba referencias, cierre, campos y catálogo."
-                        : null,
-                    }),
+                    content: context,
                   },
                 ],
                 text: {

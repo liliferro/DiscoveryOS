@@ -58,6 +58,7 @@ export function exportLeads(state: State, input: unknown) {
       "Perfil (JSON)",
       "Conversación (JSON)",
       "Respuestas de formulario (JSON)",
+      "Mapa dental declarado (JSON, numeración FDI)",
     ],
   ];
   for (const run of state.runs.filter((run) => ids.has(run.tenantId))) {
@@ -106,6 +107,7 @@ export function exportLeads(state: State, input: unknown) {
           )
         : "",
       JSON.stringify(run.answers),
+      run.dentalMap ? JSON.stringify(run.dentalMap) : "",
     ]);
   }
   return {

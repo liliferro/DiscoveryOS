@@ -171,6 +171,9 @@ test("El adaptador envía Structured Outputs y reintenta JSON inválido una vez"
     assert.equal(body.store, false);
     assert.equal(body.text.format.strict, true);
     assert.equal(body.text.format.schema.additionalProperties, false);
+    const context = JSON.parse(body.input[0].content);
+    assert.match(context.dentalMap.patientReported, /11/);
+    assert.match(context.dentalMap.instruction, /no diagnóstico/);
     return Response.json({
       id: "resp_test",
       model: connection.model,
@@ -189,7 +192,14 @@ test("El adaptador envía Structured Outputs y reintenta JSON inválido una vez"
       ],
     });
   };
-  const result = await generateDecision(config, c, connection, fetcher);
+  const result = await generateDecision(
+    config,
+    c,
+    connection,
+    fetcher,
+    undefined,
+    "Pieza 11 ausente, según la persona.",
+  );
   assert.equal(calls, 2);
   assert.equal(result.decision.nextQuestion?.fieldId, "goal");
   assert.equal(result.usage.inputTokens, 40);
@@ -248,6 +258,10 @@ test("Claude usa Messages y adapta el schema sin omitir la validación local", a
     const body = await request.json();
     assert.equal(body.output_config.format.type, "json_schema");
     assert.equal(body.output_config.effort, "medium");
+    assert.match(
+      JSON.parse(body.messages[0].content).dentalMap.patientReported,
+      /11/,
+    );
     assert.equal(
       body.output_config.format.schema.properties.summary.maxLength,
       undefined,
@@ -276,6 +290,8 @@ test("Claude usa Messages y adapta el schema sin omitir la validación local", a
       dailyLimit: 100,
     },
     fetcher,
+    undefined,
+    "Pieza 11 ausente, según la persona.",
   );
   assert.equal(called, true);
   assert.equal(result.usage.model, "claude-sonnet-5-5");
