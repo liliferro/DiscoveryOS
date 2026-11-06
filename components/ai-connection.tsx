@@ -119,7 +119,7 @@ export default function AiConnectionPanel() {
                   provider,
                   model:
                     provider === "anthropic"
-                      ? "claude-sonnet-5-5"
+                      ? "claude-haiku-5-5"
                       : "gpt-6.1-terra",
                 });
               }}

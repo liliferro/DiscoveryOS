@@ -77,7 +77,7 @@ export function defaultConnection(): AiConnection {
     provider,
     model:
       provider === "anthropic"
-        ? process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5"
+        ? process.env.ANTHROPIC_MODEL || "claude-haiku-5-5"
         : process.env.OPENAI_MODEL || "gpt-6.1-terra",
     enabled:
       isCloud() &&
