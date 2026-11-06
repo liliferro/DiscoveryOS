@@ -6,6 +6,7 @@ import {
   discoverySchema,
   type Conversation,
   type Decision,
+  expandDecisionProfile,
 } from "../lib/discovery.ts";
 import {
   encryptSecret,
@@ -87,6 +88,117 @@ test("No cierra antes del mínimo ni inventa evidencia o servicios", () => {
       ),
     /INVALID_SERVICE/,
   );
+});
+test("El perfil incremental conserva evidencia, admite correcciones y rechaza campos o cierres inventados", () => {
+  const prior = decision(1).profile;
+  const patch = {
+    ...decision(2),
+    profile: [{ ...prior[0], value: "Objetivo corregido", evidence: [2] }],
+  };
+  const expanded = expandDecisionProfile(patch, config, prior);
+  assert.equal(expanded.profile[0].value, "Objetivo corregido");
+  assert.deepEqual(expanded.profile[1], prior[1]);
+  assert.equal(
+    validateDecision(expanded, config, 2, []).profile.length,
+    config.fields.length,
+  );
+  for (const profile of [
+    [...patch.profile, ...patch.profile],
+    [{ ...prior[0], fieldId: "inventado" }],
+  ])
+    assert.throws(
+      () => expandDecisionProfile({ ...patch, profile }, config, prior),
+      /AI_INVALID_PROFILE/,
+    );
+  const cleared = expandDecisionProfile(
+    {
+      ...patch,
+      profile: [{ ...prior[0], status: "unknown", value: "", evidence: [] }],
+    },
+    config,
+    prior,
+  );
+  assert.equal(cleared.profile[0].status, "unknown");
+  assert.throws(
+    () =>
+      validateDecision(
+        { ...cleared, nextQuestion: null },
+        config,
+        config.minTurns,
+        [],
+      ),
+    /INCOMPLETE_PROFILE/,
+  );
+  const noPrior = expandDecisionProfile({ ...decision(), profile: [] }, config);
+  assert.ok(
+    noPrior.profile.every(
+      (field) => field.status === "unknown" && !field.evidence.length,
+    ),
+  );
+  assert.throws(
+    () =>
+      validateDecision(
+        expandDecisionProfile(
+          { ...patch, profile: [{ ...prior[0], evidence: [9] }] },
+          config,
+          prior,
+        ),
+        config,
+        2,
+        [],
+      ),
+    /INVALID_EVIDENCE/,
+  );
+});
+
+test("Haiku usa generación sin thinking, perfil compacto y contexto de empresa cacheable", async () => {
+  const conversation: Conversation = {
+    revision: 0,
+    turns: [],
+    closed: false,
+    provider: "anthropic",
+    usage: [],
+    calls: 0,
+    noticeVersion: "test",
+    consentedAt: "",
+  };
+  const connection = {
+    provider: "anthropic" as const,
+    model: "claude-haiku-5-5",
+    cipher: encryptSecret("sk-prueba-ficticia"),
+    enabled: true,
+    verified: false,
+    dailyLimit: 100,
+  };
+  const fetcher: typeof fetch = async (input, init) => {
+    const body = await new Request(input, init).json();
+    assert.equal(body.output_config.effort, "low");
+    assert.deepEqual(body.thinking, { type: "disabled" });
+    assert.equal(body.system[0].cache_control.type, "ephemeral");
+    assert.match(body.system[0].text, /SOLO los campos nuevos o modificados/);
+    assert.equal(JSON.parse(body.messages[0].content).answeredCount, 0);
+    return Response.json({
+      id: "msg_haiku_compact",
+      type: "message",
+      role: "assistant",
+      model: connection.model,
+      stop_reason: "end_turn",
+      content: [
+        { type: "text", text: JSON.stringify({ ...decision(), profile: [] }) },
+      ],
+      usage: { input_tokens: 30, output_tokens: 40 },
+    });
+  };
+  const result = await generateDecision(
+    config,
+    conversation,
+    connection,
+    fetcher,
+  );
+  assert.equal(result.attempts, 1);
+  assert.equal(result.decision.profile.length, config.fields.length);
+  assert.equal(result.usage.model, connection.model);
+  assert.ok(result.usage.durationMs >= 0);
 });
 test("Rechaza preguntas repetidas y cierra al máximo con resumen", () => {
   const d = decision(1);

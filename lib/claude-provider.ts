@@ -47,12 +47,23 @@ export async function requestClaude(
     const response = await client.messages.create({
       model,
       max_tokens: 4500,
-      system: instructions,
+      system: [
+        {
+          type: "text",
+          text: instructions,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
       messages: [{ role: "user", content: context }],
+      ...(/^claude-haiku-5-5(?:$|-)/.test(model)
+        ? { thinking: { type: "disabled" as const } }
+        : {}),
       output_config: {
-        ...(/^claude-(sonnet|haiku)-5-5(?:$|-)/.test(model)
-          ? { effort: "medium" as const }
-          : {}),
+        ...(/^claude-haiku-5-5(?:$|-)/.test(model)
+          ? { effort: "low" as const }
+          : /^claude-sonnet-5-5(?:$|-)/.test(model)
+            ? { effort: "medium" as const }
+            : {}),
         format: {
           type: "json_schema",
           schema: claudeSchema(schema) as Record<string, unknown>,

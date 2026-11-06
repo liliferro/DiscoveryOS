@@ -97,6 +97,7 @@ export type Conversation = {
     responseId: string;
     inputTokens: number;
     outputTokens: number;
+    durationMs?: number;
     at: string;
   }[];
   calls: number;
@@ -106,6 +107,35 @@ export type Conversation = {
   noticeVersion: string;
   consentedAt: string;
 };
+// The provider returns only changed fields; the stored decision remains complete.
+// Validate patch identifiers before merging so duplicates or unknown fields never disappear.
+export function expandDecisionProfile(
+  value: unknown,
+  config: DiscoveryConfig,
+  previous: Decision["profile"] = [],
+): Decision {
+  const decision = decisionSchema.parse(value);
+  const ids = new Set(config.fields.map((field) => field.id));
+  if (
+    new Set(decision.profile.map((field) => field.fieldId)).size !==
+      decision.profile.length ||
+    decision.profile.some((field) => !ids.has(field.fieldId))
+  )
+    throw Error("AI_INVALID_PROFILE");
+  return {
+    ...decision,
+    profile: config.fields.map(
+      (field) =>
+        decision.profile.find((item) => item.fieldId === field.id) ||
+        previous.find((item) => item.fieldId === field.id) || {
+          fieldId: field.id,
+          value: "",
+          status: "unknown" as const,
+          evidence: [],
+        },
+    ),
+  };
+}
 export const defaultDiscovery: DiscoveryConfig = {
   enabled: false,
   objective:
