@@ -304,14 +304,18 @@ test("El adaptador envía Structured Outputs y reintenta JSON inválido una vez"
       ],
     });
   };
+  const failedUsage: Conversation["usage"] = [];
   const result = await generateDecision(
     config,
     c,
     connection,
     fetcher,
-    undefined,
+    (usage) => {
+      failedUsage.push(usage);
+    },
     "Pieza 11 ausente, según la persona.",
   );
+  assert.equal(failedUsage.length, 1);
   assert.equal(calls, 2);
   assert.equal(result.decision.nextQuestion?.fieldId, "goal");
   assert.equal(result.usage.inputTokens, 40);

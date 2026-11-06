@@ -26,6 +26,7 @@ REGLAS INVARIABLES:
 - En profile devuelve SOLO los campos nuevos o modificados respecto a previousProfile. El servidor conserva los campos omitidos y completa los aún desconocidos. Si nada cambia devuelve []. Para borrar un dato corregido, devuelve ese campo con status unknown y value vacío. Nunca dupliques identificadores. Cada valor conocido o declined y cada segmento debe citar números de respuestas (1-based) que lo sustentan. Unknown significa sin información, no cero. Ninguna evidencia puede citar una pregunta sin respuesta.
 - Segmenta por interés declarado o posible afinidad con el catálogo, nunca por elegibilidad clínica ni certeza de compra. Admite múltiples servicios o ninguno. Usa los nombres EXACTOS del catálogo y argumenta con respuestas específicas. not_interested requiere una negativa explícita; ausencia de información no equivale a desinterés. No añadas servicios ni precios.
 - Si se trata de salud, incluida odontología: es orientación de interés para atención humana. No diagnostiques, indiques tratamientos, confirmes candidaturas, valores severidad, prometas resultados ni pidas expedientes, radiografías, medicamentos, identificaciones o datos de contacto. El profesional determina qué procede. Si la persona describe una situación que requiere atención profesional inmediata, termina la discovery comercial con handoff=true y un siguiente paso de contactar atención profesional; no hagas triage clínico.
+- handoff=true significa exclusivamente cierre por seguridad o necesidad de atención inmediata. Pedir información, tener dudas, querer una valoración normal o pasar a agenda NO es handoff: en esos casos usa handoff=false y conserva la segmentación de intereses y el enlace para contactar al equipo.
 - No prometas resultados comerciales. No fuerces una venta. No solicites nombre, email, teléfono ni domicilio dentro de la conversación; el contacto, si se habilita, va en formulario separado.
 - answeredCount indica el número de respuestas guardadas. Mínimo ${config.minTurns}, máximo ${config.maxTurns}. Antes del mínimo debes preguntar, salvo handoff. Después puedes cerrar si los campos requeridos están known o declined. Al máximo CIERRA incluso si faltan datos; dilo en el resumen. Si cierras, nextQuestion=null, summary útil y nextSteps concretos. Si preguntas, summary y nextSteps deben estar vacíos. La primera pregunta debe descubrir el propósito del visitante sin exigir que ya conozca el servicio.
 - Insight devuelve brevemente lo que has escuchado, sin exageraciones ni afirmaciones médicas. No menciones el perfil interno ni etiquetas de lead. No fabriques evidencia externa. La información de la empresa no prueba nada del visitante.
@@ -38,7 +39,9 @@ export async function generateDecision(
   conversation: Conversation,
   connection: AiConnection,
   fetcher: typeof fetch = fetch,
-  recordUsage?: (usage: Conversation["usage"][number]) => void | Promise<void>,
+  recordFailedUsage?: (
+    usage: Conversation["usage"][number],
+  ) => void | Promise<void>,
   dentalMap?: string,
 ) {
   const key = connectionKey(connection);
@@ -153,16 +156,17 @@ export async function generateDecision(
       durationMs: Math.round(performance.now() - requestStarted),
       at: new Date().toISOString(),
     };
-    await recordUsage?.(usage);
     const message = (payload.output || []).flatMap(
       (item: { content?: { type: string; text?: string }[] }) =>
         item.content || [],
     );
-    if (message.some((item: { type: string }) => item.type === "refusal"))
+    if (message.some((item: { type: string }) => item.type === "refusal")) {
+      await recordFailedUsage?.(usage);
       throw new DiscoveryError(
         422,
         "La IA no pudo continuar esta conversación. Revisa la solicitud o contacta con la empresa.",
       );
+    }
     try {
       if (payload.status !== "completed") throw Error("INCOMPLETE");
       const output = message
@@ -185,6 +189,7 @@ export async function generateDecision(
         attempts: attempt + 1,
       };
     } catch {
+      await recordFailedUsage?.(usage);
       failure =
         "La respuesta de IA no superó la validación del perfil, las referencias o el cierre. Reintenta sin perder tus respuestas.";
     }

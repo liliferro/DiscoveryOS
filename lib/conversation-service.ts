@@ -193,6 +193,8 @@ export async function advanceConversation(
   const { run, config, connection } = prepared;
   if (!run || !config || !connection)
     throw new DiscoveryError(500, "No se pudo preparar la conversación.");
+  let resultUsage:
+    NonNullable<Run["conversation"]>["usage"][number] | undefined;
   try {
     const result = testFixtureEnabled()
       ? await fixture(config, run.conversation!)
@@ -209,6 +211,7 @@ export async function advanceConversation(
           },
           run.dentalMap ? dentalMapSummary(run.dentalMap) : undefined,
         );
+    resultUsage = result.usage;
     return await transaction((state) => {
       const live = state.runs.find((r) => r.id === runId)!;
       if (state.tenants.find((t) => t.id === live.tenantId)?.deletedAt)
@@ -244,6 +247,11 @@ export async function advanceConversation(
     await transaction((state) => {
       const c = state.runs.find((r) => r.id === runId)?.conversation;
       if (c?.lease?.id === lockId) {
+        if (
+          resultUsage &&
+          !c.usage.some((usage) => usage.responseId === resultUsage!.responseId)
+        )
+          c.usage.push(resultUsage);
         delete c.lease;
         c.error =
           e instanceof DiscoveryError
